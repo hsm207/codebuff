@@ -55,8 +55,9 @@ from a rig instead of archaeology. Lessons it encodes:
 | `[toolbox:schema.toolset.final]` | `packages/agent-runtime/src/tools/prompts.ts` | final schema reaching the model — bug #1 surfaced here |
 | `[toolbox:state.toolDefinitions]` | `packages/agent-runtime/src/run-agent-step.ts` | toolDefinitions entering agent state — bug #2, second boundary |
 | `[toolbox:cli.exceptionNet]` | `cli/src/index.tsx` | global crash net for errors the structured logger never sees |
+| `[toolbox:cli.warningNet]` | `cli/src/entry.ts` | routes AI SDK + process warnings into the tracer - raw stderr writes were tearing the TUI frame (ai@7 v2-compatibility warning on every streamText) |
 
-Verify all of them: `bun run common/src/debug-toolbox/check.ts` → expect 5/5.
+Verify all of them: `bun run common/src/debug-toolbox/check.ts` → expect 6/6.
 
 ## Arming a new call site
 

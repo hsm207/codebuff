@@ -89,3 +89,50 @@ export function toolboxExceptionNet(): void {
     // swallow
   }
 }
+
+/**
+ * debug-toolbox: route process-level warnings into the trace log instead of
+ * raw stderr, where they tear through the TUI frame mid-render.
+ *
+ * Trigger, seen 2026-09-03: ai@7 logs its specificationVersion v2
+ * compatibility warning (our vendored openai-compatible models declare v2;
+ * see the provider-migration note in oss-labnotes) via process.emitWarning
+ * on every streamText call. With no 'warning' listener, Node prints it raw
+ * to stderr and the warning lands inside the TUI's rendered frame.
+ *
+ * Two layers:
+ * 1. globalThis.AI_SDK_LOG_WARNINGS - the SDK's own logger hook. A function
+ *    sink keeps the full structured record (provider, model, warnings[]) and
+ *    also suppresses the SDK's one-time 'how to disable me' info line.
+ * 2. process.on('warning') - catches any other library that emitWarnings
+ *    directly; adding a listener also silences Node's default stderr print.
+ *
+ * Route, don't kill: nothing is discarded, it moves to ~/freebuff-trace.log.
+ * Must run BEFORE any import that touches the ai package (call in entry.ts).
+ */
+export function toolboxWarningNet(): void {
+  try {
+    const sdkSink = (options: {
+      provider?: string
+      model?: string
+      warnings?: Array<{ type?: string; message?: string; feature?: string; details?: string }>
+    }) => {
+      toolboxTrace('AI_SDK_WARNING', {
+        provider: options.provider,
+        model: options.model,
+        warnings: options.warnings,
+      })
+    }
+    ;(globalThis as Record<string, unknown>).AI_SDK_LOG_WARNINGS = sdkSink
+
+    process.on('warning', (warning) => {
+      toolboxTrace('PROCESS_WARNING', {
+        name: warning?.name,
+        message: warning?.message,
+        stack: warning?.stack,
+      })
+    })
+  } catch {
+    // swallow - the net must never break the app
+  }
+}
