@@ -50,6 +50,12 @@ const ARMED_SITES: Site[] = [
     file: 'cli/src/index.tsx',
     why: 'global crash net - catches errors the structured logger never sees',
   },
+  {
+    label: 'cli.warningNet',
+    marker: '[toolbox:cli.warningNet]',
+    file: 'cli/src/entry.ts',
+    why: 'routes AI SDK + process warnings to the trace log - raw stderr writes were tearing the TUI frame (specificationVersion v2 warning, 2026-09-03)',
+  },
 ]
 
 function main(): number {
