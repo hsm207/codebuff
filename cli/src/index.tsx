@@ -1,5 +1,20 @@
 #!/usr/bin/env bun
 
+// [LOCAL DEBUG] global net for crashes that escape the structured logger
+import { traceDebug } from '@codebuff/common/util/trace-debug'
+process.on('uncaughtException', (err) => {
+  traceDebug('UNCAUGHT_EXCEPTION', {
+    message: err?.message,
+    stack: err?.stack,
+  })
+})
+process.on('unhandledRejection', (reason) => {
+  traceDebug('UNHANDLED_REJECTION', {
+    message: (reason as Error)?.message ?? String(reason),
+    stack: (reason as Error)?.stack,
+  })
+})
+
 // Embed tree-sitter.wasm into the bun-compile binary at a bunfs path the runtime
 // can find. Without this, web-tree-sitter resolves the wasm via require.resolve,
 // which (since 0.25.10's split exports map) returns the build-time absolute path

@@ -7,7 +7,7 @@ import { getToolCallString } from '@codebuff/common/tools/utils'
 import { buildArray } from '@codebuff/common/util/array'
 import { formatAvailableSkillsXml } from '@codebuff/common/util/skills'
 import { pluralize } from '@codebuff/common/util/string'
-import { cloneDeep } from 'lodash'
+import { cloneDeepKeepingZod } from '../util/zod-safe-clone'
 import z from 'zod/v4'
 import { convertJsonSchemaToZod } from 'zod-from-json-schema'
 
@@ -18,6 +18,7 @@ import type {
   customToolDefinitionsSchema,
 } from '@codebuff/common/util/file'
 import type { ToolSet } from 'ai'
+import { traceDebug, zodShapeProbe } from '@codebuff/common/util/trace-debug'
 
 /**
  * Ensures the inputSchema is a Zod schema. If it's a JSON Schema object
@@ -38,10 +39,17 @@ export function ensureZodSchema(
 }
 
 function ensureJsonSchemaCompatible(schema: z.ZodType): z.ZodType {
+  traceDebug('tojsonschema_enter', { shape: zodShapeProbe(schema) })
   try {
     z.toJSONSchema(schema, { io: 'input' })
+    traceDebug('tojsonschema_ok', { shape: zodShapeProbe(schema) })
     return schema
-  } catch {
+  } catch (err) {
+    traceDebug('tojsonschema_THREW_fallback_to_empty', {
+      shape: zodShapeProbe(schema),
+      error: String(err),
+      stack: (err as Error)?.stack?.split('\n').slice(0, 6).join(' | '),
+    })
     const fallback = z.object({}).passthrough()
     return schema.description ? fallback.describe(schema.description) : fallback
   }
@@ -418,11 +426,24 @@ export async function getToolSet(params: {
 
   const toolDefinitions = await additionalToolDefinitions()
   for (const [toolName, toolDefinition] of Object.entries(toolDefinitions)) {
-    const clonedDef = cloneDeep(toolDefinition)
+    const clonedDef = cloneDeepKeepingZod(toolDefinition)
     // Custom tool inputSchema may be JSON Schema (from SDK) or Zod (from MCP)
     // Ensure it's a Zod schema for the AI SDK
+    traceDebug('getToolSet_tool', {
+      toolName,
+      inShape: zodShapeProbe(clonedDef.inputSchema),
+    })
     const zodSchema = ensureZodSchema(clonedDef.inputSchema)
+    traceDebug('getToolSet_after_ensureZodSchema', {
+      toolName,
+      shape: zodShapeProbe(zodSchema),
+    })
     const safeSchema = ensureJsonSchemaCompatible(zodSchema)
+    traceDebug('getToolSet_final', {
+      toolName,
+      sameRef: safeSchema === zodSchema,
+      shape: zodShapeProbe(safeSchema),
+    })
     toolSet[toolName] = {
       ...clonedDef,
       inputSchema: safeSchema,

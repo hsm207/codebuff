@@ -1,4 +1,5 @@
 import { getErrorObject } from '@codebuff/common/util/error'
+import { traceDebug, zodShapeProbe } from '@codebuff/common/util/trace-debug'
 import { convertJsonSchemaToZod } from 'zod-from-json-schema'
 
 import { MCP_TOOL_SEPARATOR } from './mcp-constants'
@@ -55,8 +56,39 @@ export async function getMCPToolData(
           })
 
           for (const { name, description, inputSchema } of mcpData) {
+            traceDebug('mcp_tool_schema_in', {
+              server: mcpName,
+              tool: name,
+              schemaType: typeof inputSchema,
+              props: Object.keys((inputSchema as any)?.properties ?? {}),
+              raw: JSON.stringify(inputSchema).slice(0, 300),
+            })
+            // The conversion doubles as a health probe: a schema the
+            // converter cannot handle gets the server's tools disabled via the
+            // catch below instead of exploding later mid-turn.
+            let converted: any
+            try {
+              converted = convertJsonSchemaToZod(inputSchema as any) as any
+            } catch (convErr) {
+              traceDebug('mcp_convert_threw', {
+                server: mcpName,
+                tool: name,
+                error: String(convErr),
+              })
+              throw convErr
+            }
+            traceDebug('mcp_tool_schema_out', {
+              server: mcpName,
+              tool: name,
+              shape: zodShapeProbe(converted),
+            })
+            // Store the raw JSON Schema from the server, NOT the converted Zod
+            // schema. Tool definitions are persisted in run state / session
+            // state and must stay JSON-serializable; Zod instances are cyclic
+            // and make any JSON.stringify over that state detonate. Consumers
+            // convert at point of use (ensureZodSchema / toTokenCountInputSchema).
             writeTo[mcpName + MCP_TOOL_SEPARATOR + name] = {
-              inputSchema: convertJsonSchemaToZod(inputSchema as any) as any,
+              inputSchema: inputSchema as {},
               endsAgentStep: true,
               description,
             }
