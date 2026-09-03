@@ -1,0 +1,24 @@
+diff --git a/packages/agent-runtime/src/run-agent-step.ts b/packages/agent-runtime/src/run-agent-step.ts
+index 303036693..e971a4de5 100644
+--- a/packages/agent-runtime/src/run-agent-step.ts
++++ b/packages/agent-runtime/src/run-agent-step.ts
+@@ -27,6 +27,7 @@ import z from 'zod/v4'
+ 
+ import { cloneDeepKeepingZod } from './util/zod-safe-clone'
+ import { toTokenCountInputSchema } from './util/to-json-schema'
++import { toolboxTrace } from '@codebuff/common/debug-toolbox/tracer'
+ 
+ import { maybeCompactHistory } from './compact-history'
+ import { CACHE_DEBUG_FULL_LOGGING } from './constants'
+@@ -959,6 +960,11 @@ export async function loopAgentSteps(
+   initialAgentState.messageHistory = initialMessages
+   initialAgentState.systemPrompt = system
+   initialAgentState.toolDefinitions = toolDefinitions
++  //[toolbox:state.toolDefinitions]
++  toolboxTrace('state.toolDefinitions', {
++    tools: Object.keys(toolDefinitions),
++    cyclic: (() => { try { JSON.stringify(toolDefinitions); return false } catch { return true } })(),
++  })
+   let currentAgentState: AgentState = initialAgentState
+ 
+   // Convert tool definitions to Anthropic format for accurate token counting.

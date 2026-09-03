@@ -1,5 +1,8 @@
 import type { CallToolResult, TextResourceContents, BlobResourceContents } from '@modelcontextprotocol/sdk/types.js'
 
+import { toolboxTrace } from '../debug-toolbox/tracer'
+import { toolResultProbe } from '../debug-toolbox/probes'
+
 import type { ToolResultOutput } from '../types/messages/content-part'
 
 function getResourceData(
@@ -70,6 +73,8 @@ export function mcpContentToToolResultOutputs(
         value: `[Binary resource ${c.resource.uri}: ${mimeType}, ~${Math.round((blobData.length * 3) / 4)} bytes, not displayable]`,
       } satisfies ToolResultOutput
     }
+    //[toolbox:mcp.ingest.toolResult]
+    toolboxTrace('mcp.ingest.toolResult', { probe: toolResultProbe(c) })
     const fallbackValue =
       'uri' in c && typeof (c as { uri: unknown }).uri === 'string'
         ? (c as { uri: string }).uri

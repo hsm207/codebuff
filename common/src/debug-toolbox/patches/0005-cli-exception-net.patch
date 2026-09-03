@@ -1,0 +1,15 @@
+diff --git a/cli/src/index.tsx b/cli/src/index.tsx
+index cae4e380e..693c4758b 100644
+--- a/cli/src/index.tsx
++++ b/cli/src/index.tsx
+@@ -1,5 +1,10 @@
+ #!/usr/bin/env bun
+ 
++//[toolbox:cli.exceptionNet]
++import { toolboxExceptionNet, toolboxSessionStart } from '@codebuff/common/debug-toolbox/tracer'
++toolboxExceptionNet()
++toolboxSessionStart()
++
+ // Embed tree-sitter.wasm into the bun-compile binary at a bunfs path the runtime
+ // can find. Without this, web-tree-sitter resolves the wasm via require.resolve,
+ // which (since 0.25.10's split exports map) returns the build-time absolute path
