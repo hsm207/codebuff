@@ -4,6 +4,8 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 
 import { getErrorObject } from '../util/error'
+import { toolboxTrace } from '../debug-toolbox/tracer'
+import { toolResultProbe } from '../debug-toolbox/probes'
 
 import type { MCPConfig } from '../types/mcp'
 import type { ToolResultOutput } from '../types/messages/content-part'
@@ -241,6 +243,8 @@ export function mcpContentToToolResultOutputs(
         value: `[Binary resource ${c.resource.uri}: ${mimeType}, ~${Math.round((blobData.length * 3) / 4)} bytes, not displayable]`,
       } satisfies ToolResultOutput
     }
+    //[toolbox:mcp.ingest.toolResult]
+    toolboxTrace('mcp.ingest.toolResult', { probe: toolResultProbe(c) })
     const fallbackValue =
       'uri' in c && typeof (c as { uri: unknown }).uri === 'string'
         ? (c as { uri: string }).uri

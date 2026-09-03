@@ -1,5 +1,10 @@
 #!/usr/bin/env bun
 
+//[toolbox:cli.exceptionNet]
+import { toolboxExceptionNet, toolboxSessionStart } from '@codebuff/common/debug-toolbox/tracer'
+toolboxExceptionNet()
+toolboxSessionStart()
+
 // Embed tree-sitter.wasm into the bun-compile binary at a bunfs path the runtime
 // can find. Without this, web-tree-sitter resolves the wasm via require.resolve,
 // which (since 0.25.10's split exports map) returns the build-time absolute path

@@ -27,6 +27,7 @@ import z from 'zod/v4'
 
 import { cloneDeepKeepingZod } from './util/zod-safe-clone'
 import { toTokenCountInputSchema } from './util/to-json-schema'
+import { toolboxTrace } from '@codebuff/common/debug-toolbox/tracer'
 
 import { maybeCompactHistory } from './compact-history'
 import { CACHE_DEBUG_FULL_LOGGING } from './constants'
@@ -959,6 +960,11 @@ export async function loopAgentSteps(
   initialAgentState.messageHistory = initialMessages
   initialAgentState.systemPrompt = system
   initialAgentState.toolDefinitions = toolDefinitions
+  //[toolbox:state.toolDefinitions]
+  toolboxTrace('state.toolDefinitions', {
+    tools: Object.keys(toolDefinitions),
+    cyclic: (() => { try { JSON.stringify(toolDefinitions); return false } catch { return true } })(),
+  })
   let currentAgentState: AgentState = initialAgentState
 
   // Convert tool definitions to Anthropic format for accurate token counting.

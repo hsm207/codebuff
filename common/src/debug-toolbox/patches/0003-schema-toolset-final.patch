@@ -1,0 +1,22 @@
+diff --git a/packages/agent-runtime/src/tools/prompts.ts b/packages/agent-runtime/src/tools/prompts.ts
+index d10662be6..f5a4337e5 100644
+--- a/packages/agent-runtime/src/tools/prompts.ts
++++ b/packages/agent-runtime/src/tools/prompts.ts
+@@ -9,6 +9,8 @@ import { buildArray } from '@codebuff/common/util/array'
+ import { formatAvailableSkillsXml } from '@codebuff/common/util/skills'
+ import { pluralize } from '@codebuff/common/util/string'
+ import { cloneDeepKeepingZod } from '../util/zod-safe-clone'
++import { toolboxTrace } from '@codebuff/common/debug-toolbox/tracer'
++import { zodShapeProbe } from '@codebuff/common/debug-toolbox/probes'
+ import z from 'zod/v4'
+ import { convertJsonSchemaToZod } from 'zod-from-json-schema'
+ 
+@@ -458,6 +460,8 @@ export async function getToolSet(params: {
+       logger,
+       name: toolName,
+     })
++    //[toolbox:schema.toolset.final]
++    toolboxTrace('schema.toolset.final', { toolName, shape: zodShapeProbe(safeSchema) })
+     toolSet[toolName] = {
+       ...clonedDef,
+       inputSchema: safeSchema,

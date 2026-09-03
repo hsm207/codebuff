@@ -1,4 +1,5 @@
 import { getErrorObject } from '@codebuff/common/util/error'
+import { toolboxTrace } from '@codebuff/common/debug-toolbox/tracer'
 
 import { MCP_TOOL_SEPARATOR } from './mcp-constants'
 
@@ -54,6 +55,8 @@ export async function getMCPToolData(
           })
 
           for (const { name, description, inputSchema } of mcpData) {
+            //[toolbox:schema.mcp.store]
+            toolboxTrace('schema.mcp.store', { server: mcpName, tool: name, schemaType: typeof inputSchema })
             // Store the raw JSON Schema from the server, NOT the converted Zod
             // schema. Tool definitions are persisted in run state / session
             // state and must stay JSON-serializable; Zod instances are cyclic
