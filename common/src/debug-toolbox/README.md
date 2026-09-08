@@ -9,8 +9,8 @@ If you are reading this, the working tree you are in is almost certainly
 
 ```
 upstream/main (CodebuffAI/freebuff)
-  └── fix/mcp-schema-and-media   <- 5 clean fix commits; THE upstream PR branch
-        └── local/debug-infra    <- fix commits + THIS toolbox (daily driver)
+  └── fix/mcp-schema-and-media-v2  <- 11 clean fix commits; THE upstream PR branch
+        └── local/debug-infra      <- fix commits + THIS toolbox (daily driver)
 ```
 
 Companion docs (outside this repo): the private `hsm207/oss-labnotes` repo,
@@ -28,9 +28,10 @@ from a rig instead of archaeology. Lessons it encodes:
 - Every trace log must self-identify what produced it (branch + state) —
   stale, un-attributable logs burned hours this session. `toolboxSessionStart()`
   writes a `SESSION_START` line with `git describe` for this reason.
-- Silent fallbacks turn bugs into mysteries. The production `logger.warn` in
-  `ensureJsonSchemaCompatible` (fix branch, commit 5) is the upstream-facing
-  version of this lesson; the toolbox tracer is the local one.
+- Silent fallbacks turn bugs into mysteries. A production `logger.warn` in
+  `ensureJsonSchemaCompatible` was dropped from the V2 series (it modified an
+  upstream function body — conflict hygiene); the lesson now lives only here
+  in the tracer until it can be proposed upstream.
 - Deleting the trace log between runs is mandatory hygiene — grep'ing stale
   lines from a previous session produced two wrong conclusions. Do it:
   `rm ~/freebuff-trace.log` (or let `SESSION_START` lines tell you where the
@@ -43,14 +44,13 @@ from a rig instead of archaeology. Lessons it encodes:
 | `tracer.ts` | JSONL appender to `~/freebuff-trace.log`. Never throws, never touches the TUI, never ships telemetry. `FREEBUFF_TOOLBOX=0` silences. |
 | `probes.ts` | Pure shape probes: `zodShapeProbe` (is this a live zod schema?), `toolResultProbe` (MCP content block), `messagePartsProbe` (prompt-build gauntlet). |
 | `check.ts` | Drift detector: verifies all armed call sites still exist. `bun run common/src/debug-toolbox/check.ts` |
-| `patches/` | One patch per armed site — the surgical cards. `git apply --3way patches/*.patch` re-arms after upstream drift. |
 | `mcp-drive.mjs` | Raw MCP-over-stdio triage driver. The "is it the server or our client?" fork-in-the-road tool. |
 
 ## Armed call sites
 
 | Marker | File | Why |
 |---|---|---|
-| `[toolbox:mcp.ingest.toolResult]` | `common/src/mcp/client.ts` | tool-result ingestion — bugs #3/#4 lived here |
+| `[toolbox:mcp.ingest.toolResult]` | `common/src/mcp/content-mapping.ts` | tool-result ingestion — bugs #3/#4 lived here (site moved from client.ts when the mapping was extracted) |
 | `[toolbox:schema.mcp.store]` | `packages/agent-runtime/src/mcp.ts` | schema entering persisted state — bug #2 |
 | `[toolbox:schema.toolset.final]` | `packages/agent-runtime/src/tools/prompts.ts` | final schema reaching the model — bug #1 surfaced here |
 | `[toolbox:state.toolDefinitions]` | `packages/agent-runtime/src/run-agent-step.ts` | toolDefinitions entering agent state — bug #2, second boundary |
@@ -71,20 +71,26 @@ Verify all of them: `bun run common/src/debug-toolbox/check.ts` → expect 6/6.
    Keep it a ONE-LINER surrounded by production code — that is what makes
    future stripping trivial and merge conflicts tiny.
 3. Add the marker + rationale to `ARMED_SITES` in `check.ts`.
-4. Generate the patch card: `git diff -U3 -- <file> > common/src/debug-toolbox/patches/NNNN-your-label.patch`
-   (hand-edit the diff to contain ONLY the toolbox lines).
+4. Commit it as part of the toolbox commits on `local/debug-infra`
+   (git history is the single source of truth — no patch files).
 5. Update this README's table.
 
-## Re-arming after a rebase/merge
+## Re-arming after a rebase (upstream moved)
+
+The toolbox lives as commits stacked on the fix branch, so re-arming is a
+rebase, not an apply:
 
 ```bash
-bun run common/src/debug-toolbox/check.ts        # what drifted?
-git apply --3way common/src/debug-toolbox/patches/*.patch   # re-arm
-bun run common/src/debug-toolbox/check.ts        # expect 5/5 (or N/N)
+git rebase --onto <new fix tip> <old fix tip> local/debug-infra
+# resolve conflicts — the [toolbox:...] markers make each side obvious;
+# if a fix moved files (e.g. an extraction), MOVE the armed site with it
+bun run common/src/debug-toolbox/check.ts        # expect 6/6
+grep -rn '^<<<<<<<' packages/ common/src cli/src  # must be empty
 ```
 
-Conflicts from `--3way` are GOOD — they surface drift explicitly instead of
-letting sites rot silently.
+Conflicts are GOOD — they surface drift explicitly instead of letting sites
+rot silently. (2026-09-08 lesson: after resolving, grep for leftover markers
+BEFORE `git add`; a staged conflict block is how double-armed sites happen.)
 
 ## Triage flow for a future unfucking session
 

@@ -4,7 +4,7 @@
  *
  * Run from anywhere:  bun run common/src/debug-toolbox/check.ts
  * Exit 0 = all armed sites present; exit 1 = something went missing (usually
- * an upstream merge/rebase eating a marker - re-arm from patches/, see README).
+ * an upstream merge/rebase eating a marker - rebase the toolbox commits, see README).
  */
 import fs from 'fs'
 import path from 'path'
@@ -23,8 +23,8 @@ const ARMED_SITES: Site[] = [
   {
     label: 'mcp.ingest.toolResult',
     marker: '[toolbox:mcp.ingest.toolResult]',
-    file: 'common/src/mcp/client.ts',
-    why: 'tool-result ingestion - bug #3/#4 (text/binary resources as media) lived here',
+    file: 'common/src/mcp/content-mapping.ts',
+    why: 'tool-result ingestion - bug #3/#4 (text/binary resources as media) lived here; site moved from client.ts when the mapping was extracted to content-mapping.ts (V2, 2026-09-08)',
   },
   {
     label: 'schema.mcp.store',
@@ -82,7 +82,7 @@ function main(): number {
   console.log(`\n${ok}/${ARMED_SITES.length} armed sites present.`)
   if (missing.length > 0) {
     console.log(
-      `\nDrift detected. Re-arm: git apply --3way common/src/debug-toolbox/patches/*.patch`,
+      `\nDrift detected. Re-arm by rebasing the toolbox commits onto the current fix tip (see common/src/debug-toolbox/README.md).`,
     )
     console.log(`Then re-run this check. Full instructions: common/src/debug-toolbox/README.md`)
     return 1
