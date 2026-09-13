@@ -1,13 +1,16 @@
 #!/usr/bin/env bun
 /**
- * debug-toolbox drift detector: verifies every armed call site still exists.
+ * debug-toolbox drift detector: verifies every armed call site still exists,
+ * and that no PR-bound branch carries driver-only working files.
  *
  * Run from anywhere:  bun run common/src/debug-toolbox/check.ts
- * Exit 0 = all armed sites present; exit 1 = something went missing (usually
- * an upstream merge/rebase eating a marker - rebase the toolbox commits, see README).
+ * Exit 0 = all armed sites present and PR hygiene clean; exit 1 = something
+ * went missing (usually an upstream merge/rebase eating a marker - rebase the
+ * toolbox commits, see README) or a working file leaked onto a PR branch.
  */
 import fs from 'fs'
 import path from 'path'
+import { spawnSync } from 'child_process'
 
 const REPO_ROOT = path.join(import.meta.dir, '..', '..', '..')
 
@@ -58,6 +61,35 @@ const ARMED_SITES: Site[] = [
   },
 ]
 
+/**
+ * Driver-only working files (oss-labnotes handbook, Appendix A/B). They live
+ * on local/* branches only; a PR-bound branch carrying one is a leak - the
+ * upstream PR would ship our private backlog and focus list.
+ */
+const DRIVER_ONLY_FILES = ['backlog.md', 'focus-list.md']
+
+/** Branches destined for upstream PRs. Everything under local/ is driver-only by convention. */
+const PR_BOUND_BRANCH_RE = /^(fix|feat)\//
+
+function git(args: string[]): string {
+  const res = spawnSync('git', args, { encoding: 'utf8' })
+  return res.status === 0 ? res.stdout.trim() : ''
+}
+
+function prHygieneViolations(): string[] {
+  const branches = git(['for-each-ref', '--format=%(refname:short)', 'refs/heads'])
+    .split('\n')
+    .filter((b) => PR_BOUND_BRANCH_RE.test(b))
+  const violations: string[] = []
+  for (const branch of branches) {
+    const leaked = git(['ls-tree', branch, '--', ...DRIVER_ONLY_FILES])
+    if (leaked) {
+      violations.push(branch)
+    }
+  }
+  return branches.length === 0 ? [] : violations
+}
+
 function main(): number {
   console.log(`debug-toolbox check - repo root: ${REPO_ROOT}\n`)
   let ok = 0
@@ -87,6 +119,20 @@ function main(): number {
     console.log(`Then re-run this check. Full instructions: common/src/debug-toolbox/README.md`)
     return 1
   }
+
+  const leaks = prHygieneViolations()
+  if (leaks.length > 0) {
+    console.log(`\nPR hygiene: [LEAK] driver-only working files found on PR-bound branches:`)
+    for (const branch of leaks) {
+      console.log(`  ${branch}: ${DRIVER_ONLY_FILES.join(', ')}`)
+    }
+    console.log(
+      `\nFix: drop the chore(local) commits carrying them at promotion time (rebase --onto origin/main ${'local/debug-infra'} <branch>), or git rm them from the branch.`,
+    )
+    return 1
+  }
+  console.log(`PR hygiene: no driver-only working files on any PR-bound branch.`)
+
   console.log(`Trace file: ~/freebuff-trace.log (JSONL; FREEBUFF_TOOLBOX=0 silences)`)
   return 0
 }
