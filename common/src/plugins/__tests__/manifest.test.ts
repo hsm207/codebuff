@@ -1,8 +1,8 @@
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-import { describe, expect, test } from 'bun:test'
+import { afterEach, describe, expect, test } from 'bun:test'
 
 import { loadManifest, type LoadManifestResult } from '../manifest'
 
@@ -12,9 +12,17 @@ const CANONICAL_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.
 /** Longest allowed plugin name — 64 is the inclusive upper edge (spec §5.5). */
 const MAX_NAME_LENGTH = 64
 
+/** Plugin roots created by the running test, removed when it finishes. */
+const pluginRoots: string[] = []
+
+afterEach(() => {
+  for (const root of pluginRoots.splice(0)) rmSync(root, { recursive: true, force: true })
+})
+
 /** A plugin root whose plugin.json carries exactly the given bytes. */
 function makePluginRoot(manifestJson: string): string {
   const root = mkdtempSync(path.join(tmpdir(), 'freebuff-plugin-'))
+  pluginRoots.push(root)
   writeFileSync(path.join(root, 'plugin.json'), manifestJson, 'utf8')
   return root
 }
@@ -226,6 +234,62 @@ describe('loadManifest', () => {
 
       const { reports } = expectManifestOk(result)
       expect(reports).toHaveLength(0)
+    })
+  })
+
+  describe('extensions field (spec §8.1)', () => {
+    /**
+     * Given a manifest without extensions, when loaded, the manifest
+     * carries no extensions value and no report is emitted (§8.1: the
+     * field is optional).
+     */
+    test('absent extensions loads with no value and no reports', () => {
+      const root = makePluginRoot(
+        JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin' }),
+      )
+
+      const result = loadManifest(root)
+
+      const { manifest, reports } = expectManifestOk(result)
+      expect(manifest.extensions).toBeUndefined()
+      expect(reports).toHaveLength(0)
+    })
+
+    /**
+     * Given a manifest whose extensions is an object of namespace entries
+     * (the §8.1 example), when loaded, the object reaches the manifest
+     * unchanged and no report is emitted about its contents (§8.1).
+     */
+    test('extensions object is carried onto the manifest unchanged, with no reports', () => {
+      const extensions = { 'com.example.client': { setting: true } }
+      const root = makePluginRoot(
+        JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin', extensions }),
+      )
+
+      const result = loadManifest(root)
+
+      const { manifest, reports } = expectManifestOk(result)
+      expect(manifest.extensions).toEqual(extensions)
+      expect(reports).toHaveLength(0)
+    })
+
+    /**
+     * Given a manifest whose extensions is a string, when loaded, the
+     * plugin still loads (§8.1: MUST continue), a report names extensions,
+     * and the manifest carries no extensions value.
+     */
+    test('non-object extensions is reported and ignored', () => {
+      const root = makePluginRoot(
+        JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin', extensions: 'nope' }),
+      )
+
+      const result = loadManifest(root)
+
+      const { manifest, reports } = expectManifestOk(result)
+      expect(manifest.extensions).toBeUndefined()
+      expect(reports).toHaveLength(1)
+      expect(reports[0].section).toBe('§8.1')
+      expect(reports[0].message).toContain('extensions')
     })
   })
 })

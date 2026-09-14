@@ -2,49 +2,27 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
 import {
-  PLUGIN_MANIFEST_SCHEMA_ID,
-  PLUGIN_NAME_MAX_LENGTH,
+  isPlainObject,
   reportUnknownFields,
+  validateExtensions,
   validateManifestFields,
+  type PluginManifest,
 } from './manifest-policy'
+import type { PluginReport } from './report'
 
 /**
- * Manifest loading for Agent Plugins v1.0.0 — the Factory that decides
- * whether a plugin exists (spec §5.3: an invalid manifest means the plugin
- * does not exist; nothing else may be discovered or executed). This module
- * owns the I/O and orchestration; the §5.2–§5.5 field rules live in
- * manifest-policy.ts.
+ * Reads and validates `plugin.json` for Agent Plugins v1.0.0. An invalid
+ * manifest means the plugin does not exist, and nothing else may be
+ * discovered or executed (spec §5.3). This module reads the file and parses
+ * the JSON; the manifest contract and field rules live in manifest-policy.ts.
  *
  * Spec: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md
  */
 
-export { PLUGIN_MANIFEST_SCHEMA_ID, PLUGIN_NAME_MAX_LENGTH }
-
 /**
- * The parsed manifest (spec §5). Only these two fields are read today; the
- * manifest is the plugin's existence condition (§5.3), so anything invalid here
- * means no plugin at all.
- */
-export interface PluginManifest {
-  $schema: string
-  name: string
-}
-
-/**
- * Reports are part of the load result, not console output: the spec's
- * "MUST report" is behavior the client performs, and freebuff renders
- * these to the user.
- */
-export interface PluginReport {
-  severity: 'error' | 'warning'
-  section: string
-  message: string
-}
-
-/**
- * The load outcome as values: either a valid manifest with any spec-mandated
- * reports, or the reason the plugin does not exist (spec §5.3). Callers
- * branch on `ok`; reports are present in both branches for rendering.
+ * Either a valid manifest with any spec-mandated reports, or the reason the
+ * plugin does not exist (spec §5.3). Reports are present in both branches,
+ * so callers can render them whichever way the load went.
  */
 export type LoadManifestResult =
   | { ok: true; manifest: PluginManifest; reports: PluginReport[] }
@@ -55,7 +33,7 @@ export type LoadManifestResult =
  * manifest alone decides whether the plugin exists: an invalid one means the
  * plugin does not exist, so this is the only step whose failure stops
  * discovery entirely.
- * Validation failures and spec-mandated reports come back as values —
+ * Failures and spec-mandated reports are returned in the result:
  * `ok: false` with a reason, or `ok: true` with reports to render.
  */
 export function loadManifest(root: string): LoadManifestResult {
@@ -65,17 +43,22 @@ export function loadManifest(root: string): LoadManifestResult {
   const json = parsePluginJson(file.raw)
   if (!json.ok) return { ok: false, reason: json.reason, reports: [] }
 
-  if (typeof json.parsed !== 'object' || json.parsed === null || Array.isArray(json.parsed)) {
+  const parsed = json.parsed
+  if (!isPlainObject(parsed)) {
     return { ok: false, reason: 'plugin.json must contain a top-level object (§5.2)', reports: [] }
   }
 
-  const entries = json.parsed as Record<string, unknown>
-  const reports = reportUnknownFields(entries)
+  const extensions = validateExtensions(parsed)
+  const reports = [...reportUnknownFields(parsed), ...extensions.reports]
 
-  const fields = validateManifestFields(entries)
+  const fields = validateManifestFields(parsed)
   if (!fields.ok) return { ok: false, reason: fields.reason, reports }
 
-  return { ok: true, manifest: fields.manifest, reports }
+  return {
+    ok: true,
+    manifest: { ...fields.manifest, extensions: extensions.extensions },
+    reports,
+  }
 }
 
 /**

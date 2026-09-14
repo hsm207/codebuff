@@ -1,12 +1,28 @@
-import type { PluginManifest, PluginReport } from './manifest'
+import type { PluginReport } from './report'
 
 /**
- * Manifest field rules for Agent Plugins v1.0.0 (spec §5.2–§5.5) — pure
- * functions over the parsed manifest object. No filesystem access here;
- * `loadManifest` in manifest.ts reads the file and applies these rules.
+ * The manifest contract and field rules for Agent Plugins v1.0.0
+ * (spec §5.2–§8.1) — pure functions over the parsed manifest object, with no
+ * filesystem access. `loadManifest` in manifest.ts reads the file and applies
+ * these rules.
  *
  * Spec: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md
  */
+
+/**
+ * The parsed manifest (spec §5). An invalid manifest means the plugin does
+ * not exist — no components may be discovered or executed (§5.3).
+ */
+export interface PluginManifest {
+  $schema: string
+  name: string
+  /**
+   * Client extension data (§8.1): carried verbatim when present and
+   * object-shaped; freebuff reads no namespace values. Undefined when
+   * absent or when a non-object value was reported and ignored.
+   */
+  extensions?: Record<string, unknown>
+}
 
 /** The canonical manifest `$schema` id for Agent Plugins v1.0.0 (spec §5.2). */
 export const PLUGIN_MANIFEST_SCHEMA_ID =
@@ -25,7 +41,8 @@ const PLUGIN_NAME_PATTERN = /^(?!.*--)(?!.*\.\.)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?
 
 /**
  * The closed §5.2 top-level set — the only fields a conforming manifest may
- * carry. Anything outside it is reported and ignored, never given semantics.
+ * carry. Keys outside it are reported, and are not copied onto the parsed
+ * manifest (§5.2).
  */
 const MANIFEST_FIELDS = new Set([
   '$schema',
@@ -39,6 +56,14 @@ const MANIFEST_FIELDS = new Set([
   'keywords',
   'extensions',
 ])
+
+/**
+ * True for a JSON object: not a primitive, not null, not an array. The null
+ * check is required because `typeof null === 'object'`.
+ */
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
 
 /**
  * True when the name satisfies every §5.5 rule: the pattern covers
@@ -92,3 +117,29 @@ export function validateManifestFields(
   return { ok: true, manifest: { $schema: fields.$schema, name: fields.name } }
 }
 
+/**
+ * A non-object extensions value is a non-fatal §8.1 violation: report, ignore,
+ * continue loading. Namespace values are not validated: freebuff implements no
+ * extension namespaces (§8.1).
+ */
+export function validateExtensions(
+  fields: Record<string, unknown>,
+): { reports: PluginReport[]; extensions: Record<string, unknown> | undefined } {
+  const value = fields.extensions
+  if (value === undefined) return { reports: [], extensions: undefined }
+
+  if (!isPlainObject(value)) {
+    return {
+      reports: [
+        {
+          severity: 'warning',
+          section: '§8.1',
+          message: 'manifest.extensions must be an object of namespace entries; value ignored',
+        },
+      ],
+      extensions: undefined,
+    }
+  }
+
+  return { reports: [], extensions: value }
+}
