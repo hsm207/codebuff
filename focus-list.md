@@ -22,7 +22,7 @@ Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md 
 - ✅ Test 5: §8.1 extensions — absent → undefined, no report; object → carried onto the manifest unchanged, no reports about its contents; non-object → ok + report, left undefined
 - ✅ Test 6: §5.2 $schema selection — unrecognized version canonical URL → not ok + unsupported-version report; non-canonical http:// variant → not ok; no network fetch attempted
 - ✅ Test 7: §5.4 metadata — content-invalid values (version "banana", homepage/repository "not a url", license "nope") → ok, carried verbatim, no reports (spec: MUST NOT reject solely on these); a field whose JSON type is wrong (version 42) → not ok (§5.2 fatality)
-- Test 8: §5.4 author fatality + keywords type — unknown key, non-string value, whole-field non-object → not ok; {} → ok; keywords must be an array of strings, anything else (including a non-string element) → not ok
+- ✅ Test 8: §5.4 author fatality + keywords type — unknown key, non-string value, whole-field non-object → not ok; a permitted author and keywords are carried verbatim; keywords must be an array of strings, a non-string element included → not ok
 - Test 9: §5.2 manifest bytes — invalid JSON → not ok; top-level array/string/number → not ok
 - Test 10: §4.1.1 containment — plugin.json symlink/junction resolving outside the root → not ok (Windows fixture: junctions, no privilege needed)
 - Test 11: §5.1 absence — no plugin.json in root → not ok + "no manifest" report
@@ -96,6 +96,7 @@ Honest limit to state in the test rather than paper over: `developer-knowledge` 
 - ✅ F6 temp plugin roots are removed per test — `makePluginRoot` registers each root and an `afterEach` drains the registry with `rmSync(root, { recursive: true, force: true })`; verified 0 left after a full run (drove: `makePluginRoot` recreated a dir per test but discarded none — test-review S4.1). 597 dirs left over before the fix were deleted
 - F7 report-order overspecification — "each unknown field gets its own report" asserts `reports[0]`/`[1]`, an order §5.2 does not mandate (test-review S5.2) → set comparison, keeping the two-distinct-reports strength
 - F1 uncovered refusal paths — §5.1 no manifest, §5.2 non-JSON, §5.2 non-object top level have no tests (test-review S5.1) → already scheduled as Test 9 and Test 11 in Phase 1
+- ✅ F8 test file over the 500-line cap — T8 pushed `manifest.test.ts` to 501 (from 485), so the fixture DSL moved to `__tests__/manifest-fixtures.ts` (144), leaving 398 for T9–T11 (drove: clean-code S1.1 hard cap; also cleared S1.4 density and S2.4 inline literals in the same move)
 
 ## Missing operations (null versions)
 
