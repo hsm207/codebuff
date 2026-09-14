@@ -26,7 +26,7 @@ Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md 
 - ✅ Test 8: §5.4 author fatality + keywords type — unknown key, non-string value, whole-field non-object → not ok; a permitted author and keywords are carried verbatim; keywords must be an array of strings, a non-string element included → not ok
 - ✅ Test 9: §5.2 manifest is JSON and a top-level object — invalid JSON → not ok; top-level array/primitive/null → not ok
 - ✅ Test 10: §4.1.1 containment — a plugin.json resolving outside the root → not ok (junction fixture: this machine refuses file symlinks with EPERM, junctions need no privilege); a root reached through a reparse point with its manifest inside → ok (both sides are filesystem-resolved)
-- Test 11: §5.1 absence — no plugin.json in root → not ok + "no manifest" report
+- ✅ Test 11: §5.1 absence — no plugin.json at the root → not ok, the reason naming the missing manifest, and no report (nothing was examined, and a report describes a manifest that was read); a path that is present but resolves nowhere reaches the same refusal
 
 ## Phase 2: skills (sketch — re-derive from the model before starting)
 
@@ -96,7 +96,7 @@ Honest limit to state in the test rather than paper over: `developer-knowledge` 
 - ✅ F4 contract types moved inward — the manifest contract is now `manifest/plugin-manifest.ts`, the leaf of the graph that every rule module imports, with `PluginReport` in its own `report.ts` (every component produces them) and the I/O module importing both; no edge points outward any more (drove: the rules module imported its contract from the I/O module — clean-arch S3.1 DIP, S4.1 ADP, S4.2 SDP). `LoadManifestResult` stayed in `manifest.ts`: it is the load use case's own result and only consumes inward types
 - ✅ F6 temp plugin roots are removed per test — `makePluginRoot` registers each root and an `afterEach` drains the registry with `rmSync(root, { recursive: true, force: true })`; verified 0 left after a full run (drove: `makePluginRoot` recreated a dir per test but discarded none — test-review S4.1). 597 dirs left over before the fix were deleted
 - F7 report-order overspecification — `each unknown field gets its own report` (`__tests__/top-level-fields.test.ts`) asserts `reports[0]`/`[1]`, an order §5.2 does not mandate (test-review S5.2) → set comparison, keeping the two-distinct-reports strength
-- F1 uncovered refusal paths — §5.1 no manifest, §5.2 non-JSON, §5.2 non-object top level have no tests (test-review S5.1) → §5.2's two refusals landed with Test 9 (`__tests__/manifest.test.ts` for the parse, `__tests__/top-level-fields.test.ts` for the shape); the §5.1 refusal waits on Test 11
+- ✅ F1 uncovered refusal paths — §5.1 no manifest, §5.2 non-JSON, §5.2 non-object top level had no tests (test-review S5.1) → all three are covered now: Test 9 took §5.2's parse (`__tests__/manifest.test.ts`) and its non-object top level (`__tests__/top-level-fields.test.ts`), Test 11 took the §5.1 absence
 - ✅ F8 test file over the 500-line cap — T8 pushed `manifest.test.ts` to 501 (from 485), so the fixture DSL moved to `__tests__/manifest-fixtures.ts` (144) leaving 398, and the per-section split that followed moved the rows on into six files, none above 144 (drove: clean-code S1.1 hard cap; also cleared S1.4 density and S2.4 inline literals in the same move)
 - F9 `manifest.ts` (the load use case) sits beside `manifest/` (its rules) (raised 2026-09-14 by the human while reviewing the split) — `./manifest` resolves to the file only because no `index.ts` exists, so adding one later would silently re-point every relative import in the component. Whether that costs anything depends on how the Phase 5 wiring imports the manifest, which is not visible yet: settle it when those call sites exist, and prefer an explicit filename (e.g. `load-plugin-manifest.ts`) or a directory move over an `index.ts`
 
@@ -132,6 +132,7 @@ Stages per domain: clean-code 6, clean-architecture 5, test-review 6. A verdict 
 | T8 §5.4 metadata, re-audited in the retro pass | 6/6 | 5/5 | 6/6 | A5 (two accumulators in `metadata.ts`) fixed |
 | T9 §5.2 parse and top-level shape, re-audited | 6/6 | 5/5 | 6/6 | A1 (a conditional inside a test body) fixed |
 | T10 §4.1.1 containment | 6/6 | 5/5 | 6/6 | A3 override |
+| T11 §5.1 missing manifest | 6/6 | 5/5 | 6/6 | none — sabotage: removing the read's `catch` turns this row and only this row red |
 | T1–T7, graduated before the two missing stages were read | 6/6 | **3/5 stages were applied** | 6/6 | clean-architecture 04 (components) and 05 (high-level) had never been read; re-audit in Phase 6 |
 
 Overrides:
