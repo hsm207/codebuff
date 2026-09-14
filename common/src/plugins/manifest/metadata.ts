@@ -71,28 +71,41 @@ export function readMetadata(
  * Reads the §5.4 metadata strings the manifest carries. A field that is
  * present must be a string — metadata is validated by JSON type and nothing
  * else, so a value is never judged for Semantic Versioning, URL, or SPDX
- * validity.
+ * validity. The offending field is found first, leaving the values to be
+ * projected rather than accumulated in place.
  */
 function readStringMetadata(
   fields: Record<string, unknown>,
 ):
   | { ok: true; values: Partial<Record<StringMetadataField, string>> }
   | { ok: false; reason: string } {
-  const values: Partial<Record<StringMetadataField, string>> = {}
-  for (const field of STRING_METADATA_FIELDS) {
-    const value = fields[field]
-    if (value === undefined) continue
-    if (typeof value !== 'string') {
-      return { ok: false, reason: `manifest.${field} must be a string (§5.4)` }
-    }
-    values[field] = value
+  const mistyped = STRING_METADATA_FIELDS.find(
+    (field) => fields[field] !== undefined && typeof fields[field] !== 'string',
+  )
+  if (mistyped) {
+    return { ok: false, reason: `manifest.${mistyped} must be a string (§5.4)` }
   }
-  return { ok: true, values }
+
+  return {
+    ok: true,
+    values: STRING_METADATA_FIELDS.reduce<
+      Partial<Record<StringMetadataField, string>>
+    >(
+      (values, field) =>
+        typeof fields[field] === 'string'
+          ? { ...values, [field]: fields[field] }
+          : values,
+      {},
+    ),
+  }
 }
 
 /**
  * Reads the §5.4 author object, the one metadata field §5.4 constrains
- * beyond JSON type: only name, email, and url, each a string.
+ * beyond JSON type: only name, email, and url, each a string. The first
+ * entry that breaks either constraint decides the reason, so a rejection
+ * blames the field the author wrote first, and the permitted values are
+ * projected afterwards.
  */
 function readAuthor(
   value: unknown,
@@ -102,23 +115,29 @@ function readAuthor(
     return { ok: false, reason: 'manifest.author must be an object (§5.4)' }
   }
 
-  const author: PluginAuthor = {}
-  for (const [field, fieldValue] of Object.entries(value)) {
-    if (!isAuthorField(field)) {
-      return {
-        ok: false,
-        reason: `manifest.author has an unknown field "${field}" (§5.4)`,
-      }
+  const offending = Object.entries(value).find(
+    ([field, entry]) => !isAuthorField(field) || typeof entry !== 'string',
+  )
+  if (offending) {
+    const [field] = offending
+    return {
+      ok: false,
+      reason: isAuthorField(field)
+        ? `manifest.author.${field} must be a string (§5.4)`
+        : `manifest.author has an unknown field "${field}" (§5.4)`,
     }
-    if (typeof fieldValue !== 'string') {
-      return {
-        ok: false,
-        reason: `manifest.author.${field} must be a string (§5.4)`,
-      }
-    }
-    author[field] = fieldValue
   }
-  return { ok: true, author }
+
+  return {
+    ok: true,
+    author: AUTHOR_FIELDS.reduce<PluginAuthor>(
+      (author, field) =>
+        typeof value[field] === 'string'
+          ? { ...author, [field]: value[field] }
+          : author,
+      {},
+    ),
+  }
 }
 
 /**
