@@ -6,7 +6,6 @@ import {
   AUTHOR,
   AUTHOR_WITH_FOREIGN_FIELD,
   AUTHOR_WITH_NON_STRING_NAME,
-  cleanUpManifestFixtures,
   CONTENT_INVALID_METADATA,
   expectManifestOk,
   expectManifestRejected,
@@ -14,9 +13,10 @@ import {
   KEYWORDS_WITH_NON_STRING_ENTRY,
   makeManifestRoot,
   NON_OBJECT_AUTHOR,
-} from './manifest-fixtures'
+} from './fixtures/manifest'
+import { cleanUpPluginFixtures } from './fixtures/temp-roots'
 
-afterEach(cleanUpManifestFixtures)
+afterEach(cleanUpPluginFixtures)
 
 describe('metadata fields (spec §5.4)', () => {
   /**

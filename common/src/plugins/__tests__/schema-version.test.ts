@@ -3,14 +3,16 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { loadManifest } from '../manifest'
 
 import {
-  cleanUpManifestFixtures,
   expectManifestRejected,
   makePluginRoot,
   UNSUPPORTED_SCHEMA,
+} from './fixtures/manifest'
+import {
+  cleanUpPluginFixtures,
   watchNetworkAccess,
-} from './manifest-fixtures'
+} from './fixtures/temp-roots'
 
-afterEach(cleanUpManifestFixtures)
+afterEach(cleanUpPluginFixtures)
 
 describe('schema version selection (spec §5.2)', () => {
   /**

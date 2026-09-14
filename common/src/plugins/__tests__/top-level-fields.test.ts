@@ -4,16 +4,16 @@ import { loadManifest } from '../manifest'
 
 import {
   CANONICAL_SCHEMA,
-  cleanUpManifestFixtures,
   expectManifestOk,
   expectManifestRejected,
   makePluginRoot,
   TOP_LEVEL_ARRAY_JSON,
   TOP_LEVEL_NULL_JSON,
   TOP_LEVEL_STRING_JSON,
-} from './manifest-fixtures'
+} from './fixtures/manifest'
+import { cleanUpPluginFixtures } from './fixtures/temp-roots'
 
-afterEach(cleanUpManifestFixtures)
+afterEach(cleanUpPluginFixtures)
 
 describe('top-level fields (spec §5.2)', () => {
   /**

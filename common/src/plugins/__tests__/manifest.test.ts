@@ -4,15 +4,15 @@ import { loadManifest } from '../manifest'
 
 import {
   CANONICAL_SCHEMA,
-  cleanUpManifestFixtures,
   expectManifestOk,
   expectManifestRejected,
   makePluginRoot,
   makeRootWithoutManifest,
   NON_JSON_TEXT,
-} from './manifest-fixtures'
+} from './fixtures/manifest'
+import { cleanUpPluginFixtures } from './fixtures/temp-roots'
 
-afterEach(cleanUpManifestFixtures)
+afterEach(cleanUpPluginFixtures)
 
 describe('loadManifest', () => {
   test('minimal valid manifest (spec 1.0.0 §5.2 example) → ok with no reports', () => {

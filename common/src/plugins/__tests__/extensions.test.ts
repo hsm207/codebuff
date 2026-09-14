@@ -4,12 +4,12 @@ import { loadManifest } from '../manifest'
 
 import {
   CANONICAL_SCHEMA,
-  cleanUpManifestFixtures,
   expectManifestOk,
   makePluginRoot,
-} from './manifest-fixtures'
+} from './fixtures/manifest'
+import { cleanUpPluginFixtures } from './fixtures/temp-roots'
 
-afterEach(cleanUpManifestFixtures)
+afterEach(cleanUpPluginFixtures)
 
 describe('extensions field (spec §8.1)', () => {
   /**

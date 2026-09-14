@@ -3,14 +3,14 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { loadManifest } from '../manifest'
 
 import {
-  cleanUpManifestFixtures,
   expectManifestOk,
   expectManifestRejected,
   makeEscapingManifestRoot,
   makeReparsePointRoot,
-} from './manifest-fixtures'
+} from './fixtures/manifest'
+import { cleanUpPluginFixtures } from './fixtures/temp-roots'
 
-afterEach(cleanUpManifestFixtures)
+afterEach(cleanUpPluginFixtures)
 
 describe('containment (spec §4.1.1)', () => {
   /**

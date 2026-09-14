@@ -11,20 +11,21 @@ import { loadPluginSkills } from '../skills'
 import {
   SKILL_NAME,
   OTHER_SKILL_NAME,
-  cleanUpManifestFixtures,
   expectSkillsComponentInvalid,
   expectSkillsOk,
   makeEscapingSkillRoot,
   makeEscapingSkillsRoot,
   makeRootWithoutSkills,
   makeRootWithSkill,
-} from './manifest-fixtures'
+} from './fixtures/skills'
+
+import { cleanUpPluginFixtures } from './fixtures/temp-roots'
 
 /** The reader production will pass: exactly one skills directory, no roots. */
 const readSkillsDir = (skillsDir: string) =>
   loadSkillsSync({ skillsPath: skillsDir })
 
-afterEach(cleanUpManifestFixtures)
+afterEach(cleanUpPluginFixtures)
 
 describe('skills component (spec §6.2, §7.1)', () => {
   /**

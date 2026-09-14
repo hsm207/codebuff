@@ -4,14 +4,14 @@ import { loadManifest } from '../manifest'
 
 import {
   CANONICAL_SCHEMA,
-  cleanUpManifestFixtures,
   expectManifestOk,
   expectManifestRejected,
   makePluginRoot,
   MAX_NAME_LENGTH,
-} from './manifest-fixtures'
+} from './fixtures/manifest'
+import { cleanUpPluginFixtures } from './fixtures/temp-roots'
 
-afterEach(cleanUpManifestFixtures)
+afterEach(cleanUpPluginFixtures)
 
 describe('plugin name (spec §5.5)', () => {
   test.each([
