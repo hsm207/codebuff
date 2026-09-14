@@ -90,4 +90,66 @@ describe('loadManifest', () => {
       expectManifestRejected(result, 'name')
     })
   })
+
+  describe('required fields (spec §5.3)', () => {
+    /**
+     * Given a manifest without $schema, when loaded, the plugin is rejected
+     * with the reason naming $schema.
+     */
+    test('a manifest without $schema is rejected, naming $schema', () => {
+      const root = makePluginRoot(JSON.stringify({ name: 'minimal-plugin' }))
+
+      const result = loadManifest(root)
+
+      expectManifestRejected(result, '$schema')
+    })
+
+    /**
+     * Given a manifest without name, when loaded, the plugin is rejected
+     * with the reason naming name.
+     */
+    test('a manifest without name is rejected, naming name', () => {
+      const root = makePluginRoot(JSON.stringify({ $schema: CANONICAL_SCHEMA }))
+
+      const result = loadManifest(root)
+
+      expectManifestRejected(result, 'name')
+    })
+
+    /**
+     * Given a manifest whose name is not a string, when loaded, the plugin
+     * is rejected with the reason naming name.
+     */
+    test('a manifest with a non-string name is rejected, naming name', () => {
+      const root = makePluginRoot(JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 42 }))
+
+      const result = loadManifest(root)
+
+      expectManifestRejected(result, 'name')
+    })
+
+    /**
+     * Given a manifest whose $schema is not a string, when loaded, the
+     * plugin is rejected with the reason naming $schema.
+     */
+    test('a manifest with a non-string $schema is rejected, naming $schema', () => {
+      const root = makePluginRoot(JSON.stringify({ $schema: null, name: 'minimal-plugin' }))
+
+      const result = loadManifest(root)
+
+      expectManifestRejected(result, '$schema')
+    })
+
+    /**
+     * Given a manifest whose $schema is the empty string, when loaded, the
+     * plugin is rejected with the reason naming $schema (§5.3: "is empty").
+     */
+    test('a manifest with an empty $schema is rejected, naming $schema', () => {
+      const root = makePluginRoot(JSON.stringify({ $schema: '', name: 'minimal-plugin' }))
+
+      const result = loadManifest(root)
+
+      expectManifestRejected(result, '$schema')
+    })
+  })
 })
