@@ -10,7 +10,11 @@ import path from 'node:path'
 
 import { expect, spyOn } from 'bun:test'
 
+import { SKILL_FILE_NAME, SKILLS_DIR_NAME } from '../../constants/skills'
+
 import type { LoadManifestResult } from '../manifest'
+import type { PluginReport } from '../report'
+import type { LoadSkillsResult } from '../skills'
 
 /**
  * The plugin roots, manifest values, and load-result assertions the manifest
@@ -89,6 +93,12 @@ export const TOP_LEVEL_STRING_JSON = '"just a string"'
  * crash.
  */
 export const TOP_LEVEL_NULL_JSON = 'null'
+
+/** A native skill directory name the reader accepts. */
+export const SKILL_NAME = 'gcloud'
+
+/** A second native skill directory name, so sibling rows can be asserted. */
+export const OTHER_SKILL_NAME = 'finding-google-skills'
 
 /** Temp directories created by the running test, removed when it finishes. */
 const tempDirs: string[] = []
@@ -173,6 +183,94 @@ export function makeReparsePointRoot(): string {
   return root
 }
 
+/**
+ * A plugin root with a valid manifest and no `skills/` directory — the
+ * absence §6.2 forbids treating as an error (a plugin may ship no skills).
+ */
+export function makeRootWithoutSkills(): string {
+  return makeManifestRoot()
+}
+
+/**
+ * A plugin root whose `skills/` holds one valid native skill — a directory
+ * named for the skill, containing a SKILL.md whose frontmatter name matches
+ * the directory.
+ */
+export function makeRootWithSkill(skillName = SKILL_NAME): string {
+  const root = makeManifestRoot()
+  writeSkillDir(root, skillName)
+  return root
+}
+
+/**
+ * A plugin root whose `skills/` itself is a reparse point resolving to a
+ * skills directory outside the plugin root — §4.1.1's second boundary, where
+ * the fixed component location escapes.
+ */
+export function makeEscapingSkillsRoot(): string {
+  const root = makeManifestRoot()
+  const outside = `${root}-outside`
+  tempDirs.push(outside)
+  mkdirSync(path.join(outside, SKILLS_DIR_NAME), { recursive: true })
+  writeSkillDir(outside, SKILL_NAME)
+  symlinkSync(
+    path.join(outside, SKILLS_DIR_NAME),
+    path.join(root, SKILLS_DIR_NAME),
+    'junction',
+  )
+  return root
+}
+
+/**
+ * A plugin root where one skill resolves outside the plugin root — §4.1.1's
+ * third boundary. Windows junctions cannot point at a file (probed: the
+ * junction is created but every stat/read on it then throws ENOENT), so the
+ * skill *directory* is the reparse point and the SKILL.md inside its target
+ * is a real file — which is what makes the escape dangerous: the reader
+ * would load that skill from outside the root without this walk. A sibling
+ * valid skill is present, so a test can show the escape costs one skill,
+ * not the component.
+ */
+export function makeEscapingSkillRoot(): string {
+  const root = makeManifestRoot()
+  writeSkillDir(root, SKILL_NAME)
+  const outside = `${root}-outside`
+  tempDirs.push(outside)
+  writeSkillDir(outside, OTHER_SKILL_NAME)
+  symlinkSync(
+    path.join(outside, SKILLS_DIR_NAME, OTHER_SKILL_NAME),
+    path.join(root, SKILLS_DIR_NAME, OTHER_SKILL_NAME),
+    'junction',
+  )
+  return root
+}
+
+/** The SKILL.md text for a skill named `skillName` that the reader accepts. */
+function skillFileContent(skillName: string): string {
+  return [
+    '---',
+    `name: ${skillName}`,
+    'description: A skill fixture for the plugin loader tests.',
+    '---',
+    '',
+    'Body of the fixture skill.',
+  ].join('\n')
+}
+
+/**
+ * Writes one skill directory under `<root>/skills` — the directory named for
+ * the skill, holding a SKILL.md whose frontmatter name matches it.
+ */
+function writeSkillDir(root: string, skillName: string): void {
+  const skillDir = path.join(root, SKILLS_DIR_NAME, skillName)
+  mkdirSync(skillDir, { recursive: true })
+  writeFileSync(
+    path.join(skillDir, SKILL_FILE_NAME),
+    skillFileContent(skillName),
+    'utf8',
+  )
+}
+
 /** The §5.2 minimal manifest as JSON text, with the given fields added. */
 function minimalManifestJson(
   extraFields: Record<string, unknown> = {},
@@ -205,6 +303,32 @@ export function expectManifestOk(result: LoadManifestResult) {
   expect(result.ok).toBe(true)
   if (!result.ok) throw new Error(`expected ok, got: ${result.reason}`)
   return result
+}
+
+/**
+ * Asserts the skills load succeeded and returns the skill map, so tests
+ * assert on skill values, never on the result's shape.
+ */
+export function expectSkillsOk(result: LoadSkillsResult) {
+  expect(result.ok).toBe(true)
+  if (!result.ok) throw new Error(`expected ok, got: ${result.reason}`)
+  return result.skills
+}
+
+/**
+ * Asserts the skills component type was invalidated and returns the reports,
+ * so a row that also asserts on them does not need its own narrowing branch.
+ * `blame` must name the § the invalidation cites, so an invalidation for the
+ * wrong cause still fails the test.
+ */
+export function expectSkillsComponentInvalid(
+  result: LoadSkillsResult,
+  blame: string,
+): PluginReport[] {
+  expect(result.ok).toBe(false)
+  if (result.ok) throw new Error(`expected component invalid, got ok`)
+  expect(result.reason).toContain(blame)
+  return result.reports
 }
 
 /**
