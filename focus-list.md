@@ -12,7 +12,7 @@ Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md 
 ## Phase 1: manifest (Factory — common/src/plugins/manifest.ts)
 
 - ✅ Test 1: loadManifest(root) on the §5.2 minimal manifest ($schema canonical 1.0.0 id, name "minimal-plugin") → ok, manifest.name === "minimal-plugin", no reports
-- Test 2: §5.5 name constraints — invalid list (My-Plugin, -start, has--double, too.many..dots, empty, 65 chars) each → not ok + report naming `name`; valid list (my-plugin, acme.tools, lint3r, a) plus the 64-char inclusive edge → ok
+- ✅ Test 2: §5.5 name constraints — invalid list (My-Plugin, -start, has--double, too.many..dots, empty, 65 chars) each → not ok + report naming `name`; valid list (my-plugin, acme.tools, lint3r, a) plus the 64-char inclusive edge → ok
 - Test 3: §5.3 required fields — missing or wrong-typed $schema/name → not ok; no manifest object produced (Factory refuses)
 - Test 4: §5.2 unknown top-level field → ok + report naming it; field NOT carried on the parsed manifest
 - Test 5: §8.1 extensions — absent → undefined; object → carried verbatim, never interpreted; non-object → ok + report, left undefined
