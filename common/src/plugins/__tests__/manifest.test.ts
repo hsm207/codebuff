@@ -2,12 +2,15 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-import { afterEach, describe, expect, test } from 'bun:test'
+import { afterEach, describe, expect, spyOn, test } from 'bun:test'
 
 import { loadManifest, type LoadManifestResult } from '../manifest'
 
 /** The $schema id every valid 1.0.0 manifest must carry (spec §5.2). */
 const CANONICAL_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
+
+/** A canonical-looking schema id for a spec version this client cannot load. */
+const UNSUPPORTED_SCHEMA = 'https://agent-plugins.org/schemas/2.0.0/plugin.schema.json'
 
 /** Longest allowed plugin name — 64 is the inclusive upper edge (spec §5.5). */
 const MAX_NAME_LENGTH = 64
@@ -15,9 +18,24 @@ const MAX_NAME_LENGTH = 64
 /** Plugin roots created by the running test, removed when it finishes. */
 const pluginRoots: string[] = []
 
+/** Spies created by the running test, restored when it finishes. */
+const testSpies: ReturnType<typeof spyOn>[] = []
+
 afterEach(() => {
+  for (const spy of testSpies.splice(0)) spy.mockRestore()
   for (const root of pluginRoots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
+
+/**
+ * Watches the network for the running test and returns the watcher, so a load
+ * that retrieves the schema it names fails an assertion on that spy (spec §5.2
+ * MUST NOT retrieve a schema while loading a plugin).
+ */
+function watchNetworkAccess(): ReturnType<typeof spyOn> {
+  const spy = spyOn(globalThis, 'fetch')
+  testSpies.push(spy)
+  return spy
+}
 
 /** A plugin root whose plugin.json carries exactly the given bytes. */
 function makePluginRoot(manifestJson: string): string {
@@ -146,7 +164,40 @@ describe('loadManifest', () => {
 
       expectManifestRejected(result, '$schema')
     })
+  })
 
+  describe('$schema selection (spec §5.2)', () => {
+    /**
+     * Given a manifest declaring a specification version this client does not
+     * support, when loaded, the plugin is rejected and the reason names the
+     * version it declared (§5.2 SHOULD report the unsupported version).
+     */
+    test('an unsupported version is rejected, naming the version it declared', () => {
+      const root = makePluginRoot(
+        JSON.stringify({ $schema: UNSUPPORTED_SCHEMA, name: 'minimal-plugin' }),
+      )
+
+      const result = loadManifest(root)
+
+      expectManifestRejected(result, UNSUPPORTED_SCHEMA)
+    })
+
+    /**
+     * Given a client loading a plugin, when the manifest is read, nothing
+     * reaches for the network to fetch the schema it names (§5.2 MUST NOT
+     * retrieve a schema while loading a plugin).
+     */
+    test('loading a plugin does not retrieve the declared schema', () => {
+      const fetchSpy = watchNetworkAccess()
+
+      const root = makePluginRoot(
+        JSON.stringify({ $schema: UNSUPPORTED_SCHEMA, name: 'minimal-plugin' }),
+      )
+
+      loadManifest(root)
+
+      expect(fetchSpy).not.toHaveBeenCalled()
+    })
   })
 
   describe('unknown top-level fields (spec §5.2)', () => {

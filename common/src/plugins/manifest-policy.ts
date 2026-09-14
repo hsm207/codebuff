@@ -97,8 +97,12 @@ export function reportUnknownFields(fields: Record<string, unknown>): PluginRepo
 export function validateManifestFields(
   fields: Record<string, unknown>,
 ): { ok: true; manifest: PluginManifest } | { ok: false; reason: string } {
+  if (typeof fields.$schema !== 'string') {
+    return { ok: false, reason: 'manifest.$schema must be a string (§5.3)' }
+  }
+
   if (fields.$schema !== PLUGIN_MANIFEST_SCHEMA_ID) {
-    return { ok: false, reason: 'unsupported manifest $schema (§5.2)' }
+    return { ok: false, reason: `unsupported manifest $schema "${fields.$schema}" (§5.2)` }
   }
 
   if (typeof fields.name !== 'string') {
