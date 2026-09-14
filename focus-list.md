@@ -9,6 +9,7 @@ Model (locked 2026-09-14 with the human; DDD crunch grounded in Evans Ch 1/5/6):
 - Modules: `common/src/plugins/{manifest,skills,mcp-config,expand,loader}.ts`.
 Test prose (2026-09-14, human ruling): every test reads as Given/When/Then — the docstring carries the GWT sentence, the title is trigger→outcome, the body is straight-line AAA; table-driven test.each only for large spec-enumerated sets (T2), never for dense object tables whose titles interpolate garbage.
 DSL rationale (2026-09-14): the rejection contract is not the boolean complement of the success contract — "not ok-true" includes "the loader crashed", which the Factory forbids; hence paired helpers expectManifestOk / expectManifestRejected (the negative one also asserts the reason blames the field under test).
+T7 merge note: fold the T4 permitted-but-unimplemented-fields row (no reports) into Test 7 when it lands — same fixture carries values verbatim + no-reports claim.
 Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md (v1.0.0 published; 1.1.0 draft). Local cache verified byte-identical 2026-09-14.
 
 ## Phase 1: manifest (Factory — common/src/plugins/manifest.ts)
@@ -16,7 +17,7 @@ Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md 
 - ✅ Test 1: loadManifest(root) on the §5.2 minimal manifest ($schema canonical 1.0.0 id, name "minimal-plugin") → ok, manifest.name === "minimal-plugin", no reports
 - ✅ Test 2: §5.5 name constraints — invalid list (My-Plugin, -start, has--double, too.many..dots, empty, 65 chars) each → not ok + report naming `name`; valid list (my-plugin, acme.tools, lint3r, a) plus the 64-char inclusive edge → ok
 - ✅ Test 3: §5.3 required fields — missing or wrong-typed $schema/name → not ok; no manifest object produced (Factory refuses)
-- Test 4: §5.2 unknown top-level field → ok + report naming it; field NOT carried on the parsed manifest
+- ✅ Test 4: §5.2 unknown top-level field → ok + report naming it; field NOT carried on the parsed manifest
 - Test 5: §8.1 extensions — absent → undefined; object → carried verbatim, never interpreted; non-object → ok + report, left undefined
 - Test 6: §5.2 $schema selection — unrecognized version canonical URL → not ok + unsupported-version report; non-canonical http:// variant → not ok; no network fetch attempted
 - Test 7: §5.4 over-rejection guard — version "banana", homepage "not a url", license "nope" → ok, carried verbatim (spec: MUST NOT reject solely on these)
