@@ -6,12 +6,54 @@ import {
   CANONICAL_SCHEMA,
   cleanUpManifestFixtures,
   expectManifestOk,
+  expectManifestRejected,
   makePluginRoot,
+  TOP_LEVEL_ARRAY_JSON,
+  TOP_LEVEL_NULL_JSON,
+  TOP_LEVEL_STRING_JSON,
 } from './manifest-fixtures'
 
 afterEach(cleanUpManifestFixtures)
 
 describe('top-level fields (spec §5.2)', () => {
+  /**
+   * Given a plugin.json whose top level is an array, when loaded, the plugin
+   * is rejected — §5.2 requires a top-level object, and an array is the
+   * non-object a `typeof` check alone would accept.
+   */
+  test('a top-level array is rejected', () => {
+    const root = makePluginRoot(TOP_LEVEL_ARRAY_JSON)
+
+    const result = loadManifest(root)
+
+    expectManifestRejected(result, 'top-level object')
+  })
+
+  /**
+   * Given a plugin.json whose top level is a string primitive, when loaded,
+   * the plugin is rejected — §5.2 requires a top-level object.
+   */
+  test('a top-level primitive is rejected', () => {
+    const root = makePluginRoot(TOP_LEVEL_STRING_JSON)
+
+    const result = loadManifest(root)
+
+    expectManifestRejected(result, 'top-level object')
+  })
+
+  /**
+   * Given a plugin.json whose top level is null, when loaded, the plugin is
+   * rejected rather than crashing on a value `typeof` calls an object (§5.2
+   * requires a top-level object).
+   */
+  test('a top-level null is rejected', () => {
+    const root = makePluginRoot(TOP_LEVEL_NULL_JSON)
+
+    const result = loadManifest(root)
+
+    expectManifestRejected(result, 'top-level object')
+  })
+
   /**
    * Given a valid manifest carrying one unknown top-level field, when
    * loaded, the plugin still loads (§5.2 MUST continue), a report names

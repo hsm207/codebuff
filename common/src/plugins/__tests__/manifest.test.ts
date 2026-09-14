@@ -8,6 +8,7 @@ import {
   expectManifestOk,
   expectManifestRejected,
   makePluginRoot,
+  NON_JSON_TEXT,
 } from './manifest-fixtures'
 
 afterEach(cleanUpManifestFixtures)
@@ -23,6 +24,19 @@ describe('loadManifest', () => {
     const { manifest, reports } = expectManifestOk(result)
     expect(manifest.name).toBe('minimal-plugin')
     expect(reports).toHaveLength(0)
+  })
+
+  /**
+   * Given a plugin.json that is not valid JSON, when loaded, the plugin is
+   * rejected with a reason saying the manifest is not valid JSON (§5.2: the
+   * manifest MUST be JSON).
+   */
+  test('a plugin.json that is not valid JSON is rejected', () => {
+    const root = makePluginRoot(NON_JSON_TEXT)
+
+    const result = loadManifest(root)
+
+    expectManifestRejected(result, 'not valid JSON')
   })
 
   describe('required fields (spec §5.3)', () => {

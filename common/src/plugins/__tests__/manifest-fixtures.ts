@@ -61,6 +61,29 @@ export const KEYWORDS = ['google-cloud', 'gcloud']
 /** The same keywords list with one element that is not a string. */
 export const KEYWORDS_WITH_NON_STRING_ENTRY = ['google-cloud', 7]
 
+/** Manifest text that is not JSON at all (§5.2: the manifest MUST be JSON). */
+export const NON_JSON_TEXT = 'this is not JSON'
+
+/**
+ * Manifest text that parses as JSON but whose top level is an array — the
+ * non-object a `typeof` check alone would wave through (§5.2 requires an
+ * object).
+ */
+export const TOP_LEVEL_ARRAY_JSON = '[]'
+
+/**
+ * Manifest text whose top level is a string primitive — rejected by the type
+ * clause of the object rule (§5.2 requires an object).
+ */
+export const TOP_LEVEL_STRING_JSON = '"just a string"'
+
+/**
+ * Manifest text whose top level is null — JSON-valid, and the case `typeof`
+ * alone reports as an object, so this row also pins that reading it cannot
+ * crash.
+ */
+export const TOP_LEVEL_NULL_JSON = 'null'
+
 /** Plugin roots created by the running test, removed when it finishes. */
 const pluginRoots: string[] = []
 
@@ -89,7 +112,7 @@ export function watchNetworkAccess(): ReturnType<typeof spyOn> {
   return spy
 }
 
-/** A plugin root whose plugin.json carries exactly the given bytes. */
+/** A plugin root whose plugin.json holds exactly the given manifest text. */
 export function makePluginRoot(manifestJson: string): string {
   const root = mkdtempSync(path.join(tmpdir(), 'freebuff-plugin-'))
   pluginRoots.push(root)
@@ -131,8 +154,9 @@ export function expectManifestOk(result: LoadManifestResult) {
 
 /**
  * Asserts the plugin does not exist (the fatal branch) and that the loader's
- * reason blames the field named by `blame`, so a rejection for the wrong
- * cause still fails the test.
+ * reason names the cause given by `blame` — a field for field rules, the
+ * refused shape or manifest text for the §5.2 structural rules — so a
+ * rejection for the wrong cause still fails the test.
  */
 export function expectManifestRejected(
   result: LoadManifestResult,
