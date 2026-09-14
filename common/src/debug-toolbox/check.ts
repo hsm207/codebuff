@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
 /**
  * debug-toolbox drift detector: verifies every armed call site still exists,
- * and that no PR-bound branch carries driver-only working files.
+ * and that no *pushed* PR-bound branch carries driver-only working files.
+ * (Working files ride committed on unpushed feature branches mid-work and
+ * are stripped to the driver branch before pushing/PRing.)
  *
  * Run from anywhere:  bun run common/src/debug-toolbox/check.ts
  * Exit 0 = all armed sites present and PR hygiene clean; exit 1 = something
@@ -62,9 +64,12 @@ const ARMED_SITES: Site[] = [
 ]
 
 /**
- * Driver-only working files (oss-labnotes handbook, Appendix A/B). They live
- * on local/* branches only; a PR-bound branch carrying one is a leak - the
- * upstream PR would ship our private backlog and focus list.
+ * Driver-only working files (oss-labnotes handbook, Appendix A/B). They ride
+ * committed on feature branches while a phase is in progress (versioned with
+ * the work), and are stripped back to the driver branch before any PR goes
+ * out. A *pushed* PR-bound branch still carrying one is a leak - it is one
+ * step from an upstream PR that would ship our private backlog and focus
+ * list. Unpushed local branches are free to carry them mid-work.
  */
 const DRIVER_ONLY_FILES = ['backlog.md', 'focus-list.md']
 
@@ -76,10 +81,19 @@ function git(args: string[]): string {
   return res.status === 0 ? res.stdout.trim() : ''
 }
 
+/**
+ * True when the branch has an upstream: someone (human or agent) ran `git
+ * push -u`, which is the moment the branch becomes a PR candidate. Unpushed
+ * local branches are mid-work by definition.
+ */
+function hasUpstream(branch: string): boolean {
+  return git(['for-each-ref', '--format=%(upstream:short)', `refs/heads/${branch}`]).length > 0
+}
+
 function prHygieneViolations(): string[] {
   const branches = git(['for-each-ref', '--format=%(refname:short)', 'refs/heads'])
     .split('\n')
-    .filter((b) => PR_BOUND_BRANCH_RE.test(b))
+    .filter((b) => PR_BOUND_BRANCH_RE.test(b) && hasUpstream(b))
   const violations: string[] = []
   for (const branch of branches) {
     const leaked = git(['ls-tree', branch, '--', ...DRIVER_ONLY_FILES])
@@ -127,7 +141,7 @@ function main(): number {
       console.log(`  ${branch}: ${DRIVER_ONLY_FILES.join(', ')}`)
     }
     console.log(
-      `\nFix: drop the chore(local) commits carrying them at promotion time (rebase --onto origin/main ${'local/debug-infra'} <branch>), or git rm them from the branch.`,
+      `\nFix: before pushing/PRing, strip the working files back to the driver branch (rebase --onto origin/main ${'local/debug-infra'} <branch>, then restore them on local/debug-infra).`,
     )
     return 1
   }
