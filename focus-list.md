@@ -18,7 +18,7 @@ Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md 
 - ✅ Test 2: §5.5 name constraints — invalid list (My-Plugin, -start, has--double, too.many..dots, empty, 65 chars) each → not ok + report naming `name`; valid list (my-plugin, acme.tools, lint3r, a) plus the 64-char inclusive edge → ok
 - ✅ Test 3: §5.3 required fields — missing or wrong-typed $schema/name → not ok; no manifest object produced (Factory refuses)
 - ✅ Test 4: §5.2 unknown top-level field → ok + report naming it; field NOT carried on the parsed manifest
-- Test 5: §8.1 extensions — absent → undefined; object → carried verbatim, never interpreted; non-object → ok + report, left undefined
+- Test 5: §8.1 extensions — absent → undefined, no report; object → carried onto the manifest unchanged, no reports about its contents; non-object → ok + report, left undefined
 - Test 6: §5.2 $schema selection — unrecognized version canonical URL → not ok + unsupported-version report; non-canonical http:// variant → not ok; no network fetch attempted
 - Test 7: §5.4 over-rejection guard — version "banana", homepage "not a url", license "nope" → ok, carried verbatim (spec: MUST NOT reject solely on these)
 - Test 8: §5.4 author fatality — unknown key, non-string value, whole-field non-object → not ok; {} → ok
@@ -58,6 +58,16 @@ Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md 
 - Test 30: plugin MCP servers connect in a live session
 - Test 31: plugin install <git-url> fetches into the plugins root; installed plugin loads end-to-end (InstalledPlugin realized)
 - Test 32: install failure → clear report, nothing registered
+
+## Phase 6: refactorings (scheduled by the T5 audit, 2026-09-14)
+
+- ✅ F2 immutable report assembly — `reports.push(...)` mutated a local array in `loadManifest` (clean-arch S1.4, clean-code S4.3)
+- ✅ F5 `isPlainObject` extraction — the typeof/null/array check appeared twice and forced two `as Record<string, unknown>` casts (clean-code S2.1, S2.3)
+- F3 composed report assertion — the non-object extensions test runs 11 physical lines (10-line cap) and four tests repeat the section+message probe (test-review S1.4, clean-code S5.2) → one `expectReportAbout(reports, { section, field })` helper
+- F4 contract types live in the outer module — the policy module imports its contract from `manifest.ts`, so the inner module depends outward and the file graph cycles (type-only, erased at runtime) (clean-arch S3.1 DIP, S4.1 ADP, S4.2 SDP) → move `PluginManifest`/`PluginReport`/`LoadManifestResult` inward and re-export from `manifest.ts`
+- F6 temp plugin roots are never removed — `makePluginRoot` recreates a dir per test but discards none (test-review S4.1) → `rmSync(root, { recursive: true, force: true })` in an `afterEach`
+- F7 report-order overspecification — "each unknown field gets its own report" asserts `reports[0]`/`[1]`, an order §5.2 does not mandate (test-review S5.2) → set comparison, keeping the two-distinct-reports strength
+- F1 uncovered refusal paths — §5.1 no manifest, §5.2 non-JSON, §5.2 non-object top level have no tests (test-review S5.1) → already scheduled as Test 9 and Test 11 in Phase 1
 
 ## Missing operations (null versions)
 
