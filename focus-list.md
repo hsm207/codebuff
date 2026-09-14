@@ -7,12 +7,28 @@ Model (locked 2026-09-14 with the human; DDD crunch grounded in Evans Ch 1/5/6):
 - `loadManifest` (Factory, atomic), `loadPlugin` (Service), `Report` (value object — "MUST/SHOULD report" is mandatory domain behavior).
 - `extensions` carried shape-only, never interpreted (§8.1); NOT a component — §7 defines exactly two component types.
 - Module layout (2026-09-14, human ruling after the SRP/screaming review of the 308-line `manifest-policy.ts`): the manifest is split one spec section per module — `plugins/manifest.ts` (the load use case and the §5.2 fatality order), `plugins/manifest/{plugin-manifest,plugin-name,metadata,schema-version,top-level-fields,extensions}.ts`, and `plugins/json-value.ts` for the JSON predicate the component rules share; `plugins/report.ts` stays innermost. Four rules come with it: a file is named for the spec section it enforces and never for its technical layer ("policy" is banned as a name — in Clean Architecture's own vocabulary it means the whole inner ring, not one file's rules); no `export` without a consumer; the manifest graph stays acyclic with the contract types as its leaf; tests mirror the split, one file per section, so no test file can drift back to the 500-line cap.
-- Later phases keep this grain: `skills.ts`, `mcp-config/` (adapter), `expand.ts`, `loader.ts` at `plugins/` level.
+- Later phases keep this grain: `skills.ts`, `mcp-config/` (adapter), `loader.ts` at `plugins/` level; `expand.ts` moves to the next PR with Phase 4 (scope cut 2026-09-14).
 - MCP stance (2026-09-14, human ruling): server shapes are validated by the existing `common/src/types/mcp.ts` schemas (`mcpConfigStdioSchema` / `mcpConfigRemoteSchema`), never re-declared. Where the spec asks for more than freebuff implements today we do **not** build it — we leave an inline note naming the § and the missing upstream capability, so the maintainers can see exactly where their own MCP support falls short of the spec and decide for themselves. Gaps to note at the seam: `cwd` (absent from `MCPConfig` and not passed to `StdioClientTransport`, so §7.2.1's default-to-plugin-root is unhonored), `PLUGIN_ROOT`/`PLUGIN_DATA` provisioning into the subprocess env (§9.1), and `${PLUGIN_ROOT}`/`${PLUGIN_DATA}` expansion in args/env/cwd (§9.2 — the native `$VAR`→`process.env` substitution in `common/src/mcp/client.ts` is a different mechanism). Ours to enforce regardless, since they need no upstream capability: closed top level, variant exclusivity, `type` presence (the native schemas default it), reserved env names (§9.2), remote URL/header rules; whether a present-but-unhonorable `cwd` gets form-validated-then-ignored or is treated as an invalid entry is T23's call.
 Test prose (2026-09-14, human ruling): every test reads as Given/When/Then — the docstring carries the GWT sentence, the title is trigger→outcome, the body is straight-line AAA; table-driven test.each only for large spec-enumerated sets (T2), never for dense object tables whose titles interpolate garbage.
 DSL rationale (2026-09-14): the rejection contract is not the boolean complement of the success contract — "not ok-true" includes "the loader crashed", which the Factory forbids; hence paired helpers expectManifestOk / expectManifestRejected (the negative one also asserts the reason blames the field under test).
 T7 merge note: fold the T4 permitted-but-unimplemented-fields row (no reports) into Test 7 when it lands — same fixture carries values verbatim + no-reports claim.
 Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md (v1.0.0 published; 1.1.0 draft). Local cache verified byte-identical 2026-09-14.
+
+## Scope of this PR (locked 2026-09-14, after the Phase 1 reflection)
+
+Three deliverables, and nothing else:
+
+1. parse `plugin.json` per the spec — Phase 1, done (T1–T11)
+2. reuse the existing readers for the components: a plugin's `skills/` load through `loadSkills({ skillsPath })`, and its `mcp.json` through one thin adapter that reshapes a spec server entry into a native `MCPConfig`. If the reader accepts the file, the component is accepted — no second validator, no second conformance suite
+3. `freebuff plugin install <url>` for the google-cloud-developer plugin, usable after a restart — Phase 5
+
+One exception, because item 3 is impossible without it: the native MCP reader cannot read a spec `mcp.json` at all (`mcpFileSchema` is `{mcpServers}` over `mcpConfigSchema`, whose remote `type` is `enum(['http','sse'])`, against the spec's `streamable-http`), so the adapter exists to make the file readable. Server shape still comes from the upstream schemas, never re-declared.
+
+Assumed, not enforced — the §-deltas stay recorded as inline notes at the seam (the MCP stance ruling above still governs): skill frontmatter beyond the spec's `name`/`description`; **§7.1's SHOULD-report for a refused skill and §6.2's component-type-invalid**, where the native reader is silent and a dropped skill therefore leaves no trace (Phase 2 records the cost); §7.2 conformance beyond what a `MCPConfig` can express; and §9.1/§9.2 env and expansion (Phase 4, deferred).
+
+Kept regardless (ruled 2026-09-14, no upstream capability required): §4.1.1 containment at every read of a plugin-relative path — the predicate already exists and a plugin is untrusted input.
+
+The cut's known cost: `install` can succeed on a plugin whose MCP entry we would later refuse. Mitigated for free — the adapter must run the native schema to produce a config, so a bad entry is skip-and-report by construction (Test 20).
 
 ## Phase 1: manifest (Factory — common/src/plugins/manifest.ts)
 
@@ -28,33 +44,35 @@ Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md 
 - ✅ Test 10: §4.1.1 containment — a plugin.json resolving outside the root → not ok (junction fixture: this machine refuses file symlinks with EPERM, junctions need no privilege); a root reached through a reparse point with its manifest inside → ok (both sides are filesystem-resolved)
 - ✅ Test 11: §5.1 absence — no plugin.json at the root → not ok, the reason naming the missing manifest, and no report (nothing was examined, and a report describes a manifest that was read); a path that is present but resolves nowhere reaches the same refusal
 
-## Phase 2: skills (sketch — re-derive from the model before starting)
+## Phase 2: skills (reuse the native reader — no plugin-side skill module)
 
-- Test 12: discovers skills/*/SKILL.md exactly one level deep via the existing skill parser
-- Test 13: missing skills/ → zero skills, no error (§6.2)
-- Test 14: skills/ present but not a directory → skill component type invalid, other component types still load
-- Test 15: one malformed SKILL.md → skipped + report, sibling skills load
-- Test 16: SKILL.md resolving outside the root → skipped (§4.1.3)
+Ruled 2026-09-14 (scope cut, then narrowed again the same day after asking what the tests would prove): a plugin's skills are whatever `loadSkills({ skillsPath: <root>/skills })` returns. The reader already walks `skills/*/SKILL.md` one level deep and already skips a malformed document without losing its siblings — the spec's §6.2/§7.1 layout and native discovery agree, so a second validator would only be a lookalike. Phase 2 adds exactly one thing: the containment call at the walk. Two rows, both guarding our own code rather than the reader's.
 
-## Phase 3: MCP config (sketch — re-derive from the model before starting)
+- ✅ Test 13: missing skills/ → zero skills, no error (§6.2). Guards our containment call, not the reader: `resolvesWithinRoot` throws on a missing path, so the walk absorbs the throw as absence — sabotage-proof (flipping the catch's result to a refusal turns exactly this row red)
+- ✅ Test 16: §4.1.1 containment at the skill walk, both boundaries under one rule — `skills/` itself resolving outside the root → the component type is invalid (§6.2, boundary 2), and a discovered skill resolving outside the root → that skill is skipped, sibling loads (§7.1, boundary 3). Landed as `plugins/skills.ts` (`loadPluginSkills(root, readSkillsDir)`) with the reader injected — common cannot import the SDK, and the walk contributes only containment and reports, never validity. Sabotage-proof per boundary (inverting either decision turns exactly its row red). The same rule guards the `mcp.json` read in Phase 3, with no separate row
 
-Adapter boundary (2026-09-14, grounded on google-cloud-developer's real `mcp.json`): the file is `{$schema: <version>/mcp.schema.json, mcpServers}`; the spec's variant name is `streamable-http` where native is `http`, and the native `type` carries a zod default while §7.2 requires the field. Mapping, `$schema`-vs-manifest-version selection, and §-cited reporting are ours; the server *shape* is upstream's.
+Deliberately not built — unhonored spec duties, recorded here instead (ruled 2026-09-14: a smaller PR beats a second discovery pass):
 
-- Test 17: closed mcp.json top level { $schema, mcpServers }; each server matches exactly one variant; empty mcpServers valid
+- §7.1 *"the client SHOULD report the invalid skill"*, and §6.2's component-type-invalid outcome for a `skills/` that is present but not a directory. The native reader is silent on both — `discoverSkillsFromDirectory` catches the `readdirSync` throw and returns `{}`, `parseSkillFileContent` returns `null` outside `verbose` logging — so three spec-distinct outcomes arrive as one answer: **absent** (legal), **present-but-wrong-kind** (component type invalid), and **one refused skill** (skipped, reportable). Consequence to state in the Phase 5 render rather than paper over: `skills 5 registered` can print while a sixth was silently dropped. Honoring it needs a report-only enumeration of `skills/` diffed against the reader's output — a ledger, not a validator, since it holds no validity logic — deferred to the next PR with Test 14 and Test 15
+- the reader's extra constraints can silently drop a spec-valid skill: frontmatter `name` must equal the directory name (`parse-skill.ts`), and a directory name must match the native skill-name regex — which is why Test 29 asserts against the real bundle rather than against the layout
+- Test 12 folded into Test 29 (ruled 2026-09-14): both assert the same five skills from the same fixture, so the path seam and the registry wiring are one row, not two
+
+## Phase 3: MCP config (thin adapter — re-derive the sketch from the model before starting)
+
+Adapter boundary (2026-09-14, grounded on google-cloud-developer's real `mcp.json` plus the spec text and the native transport constructors — not on label matching): the file is `{$schema: <version>/mcp.schema.json, mcpServers}`. §7.2's two remote variants correspond one-to-one with the native `type` values, and the naming difference is a label rather than a transport: `streamable-http` ("selects the current MCP Streamable HTTP transport", §7.2.1) is native `'http'`, which builds `StreamableHTTPClientTransport`; `sse` ("the deprecated HTTP+SSE transport defined by the MCP 2024-11-05 specification", §7.2.1) is native `'sse'`, which builds `SSEClientTransport`. Neither side defines a third remote transport. So the adapter is a rename that has to be *documented* rather than inferred, and the check that backs it is the constructor in `common/src/mcp/client.ts` — a label match alone would keep passing if native `'http'` ever stopped building the Streamable HTTP transport, silently connecting the plugin the wrong way. The native `type` also carries a zod default where §7.2 requires the field. Mapping and §-cited reporting are ours; `$schema`-vs-manifest-version selection is deferred with Test 19; the server *shape* is upstream's.
+
+- Test 21: adapter maps a spec server entry onto a native `MCPConfig` — `streamable-http` → `'http'`, `sse` → `'sse'`, `$schema` not carried; every output is accepted by `mcpConfigSchema`, `developer-knowledge` included. The row pins the mapped value *and* the reason for it (native `'http'` is the Streamable HTTP transport per its constructor, not a separate plain-HTTP variant), so the docstring cites `client.ts` rather than asserting the rename. This is the adapter's reason to exist (narrowed 2026-09-14: the native schema is the arbiter for server shape; no plugin-side closed-top-level or variant-exclusivity pass)
 - Test 18: missing mcp.json → no error; present but not a regular file → MCP disabled, skills still load
-- Test 19: invalid JSON / unrecognized $schema / version mismatch vs manifest → MCP disabled for the plugin + report
-- Test 20: one invalid server entry → skipped + report, sibling servers load
-- Test 21: streamable-http → native http, sse → native sse (adapter module; common/src/mcp/client.ts untouched)
-- Test 22: stdio command = bare token or ./path only; ../bin/server rejected; no expansion in command
-- Test 23: cwd forms — omitted → plugin root; ./x, ${PLUGIN_ROOT}/x, ${PLUGIN_DATA}/x valid; any other form or post-resolution escape → entry invalid
-- Test 24: remote rules — absolute http(s) URL, no userinfo/fragment, HTTPS off-loopback; duplicate-case header names invalid
-- Test 25: env entry named PLUGIN_ROOT/PLUGIN_DATA → server entry invalid (§9.2)
+- Test 20: one server entry the native schema refuses → skipped + report, sibling servers load
 - Test 26: only mcp.json loads — google-cloud-developer's `.mcp.json` is byte-identical to it (same blob sha at HEAD, so no decoy variant to distinguish) and `mcp_config.json` is another client's shape (`serverUrl`/`authProviderType`); loading that root yields exactly one server and no reports about either file
 
-## Phase 4: env & expansion (sketch — re-derive from the model before starting)
+Deferred to seam notes, not built in this PR (2026-09-14 scope cut) — §7.2's per-entry rules: Test 19 (invalid JSON and an unrecognized `$schema` stay readability failures the adapter reports; version-vs-manifest is §5.2's job, already Test 6), Test 17's closed top level and variant exclusivity, Test 22 (bare-token command, no `../`), Test 23 (cwd forms — this also retires the earlier "present-but-unhonorable `cwd`" judgment call), Test 24 (remote URL and header rules), Test 25 (§9.2 reserved env names). Two consequences worth recording for the maintainers: the native remote shape is `url: z.string()` with no URL check, and nothing enforces the reserved env names — neither is reachable on this plugin's happy path, whose only server is remote.
 
-- Test 27: ${PLUGIN_ROOT}/${PLUGIN_DATA} expanded in args, env values, cwd only; single non-recursive pass; unknown ${X} stays literal; env keys and command untouched
-- Test 28: subprocess env = base + configured overlay, then PLUGIN_ROOT/PLUGIN_DATA set last; dataDir created before launch, contents persist across update
+## Phase 4: env & expansion (deferred to the next PR — 2026-09-14 scope cut)
+
+Nothing in this PR's happy path reads it: google-cloud-developer's only server is remote `streamable-http`, so no subprocess is spawned and no placeholder appears in its `mcp.json`. The §9.1/§9.2 gaps stay recorded at the seam (the earlier list stands: `cwd` absent from `MCPConfig` and not passed to `StdioClientTransport`; `PLUGIN_ROOT`/`PLUGIN_DATA` not provisioned into a subprocess env; expansion is a different mechanism from the native `$VAR`→`process.env` substitution in `common/src/mcp/client.ts`).
+
+- Test 27 and Test 28 move to the next PR unchanged (placeholder expansion in args/env/cwd; the subprocess env overlay and `dataDir` contents surviving an update). Install still provisions the dir — `<dataRoot>/<name>` is one `mkdir` on the entity's own path and gives Test 33's "nothing written on failure" a real target — but nothing reads it until expansion lands.
 
 ## Phase 5: session surface & install (clarified 2026-09-14 with the human)
 
@@ -80,7 +98,7 @@ End-state target (grounded by fetching google/skills@main, not remembered): `plu
 Proposed render: `✔ google-cloud-developer 1.1.2 ← github.com/google/skills/plugins/cloud/google-cloud-developer → <pluginsRoot>/google-cloud-developer`, then `skills 5 registered`, `mcp 1 server developer-knowledge (streamable-http)`, `data <pluginsRoot>/.data/google-cloud-developer (created)`, and a reports line that renders even when empty.
 Honest limit to state in the test rather than paper over: `developer-knowledge` needs GCP credentials (the plugin's Gemini manifest declares `authProviderType: google_credentials`), so the live assertion is "configured and the connection is attempted", not "tools listed".
 
-- Test 29: plugin skills join the session registry as a third root — the 5 plugin skills present in `getLoadedSkills()`, the two native roots untouched
+- Test 29: plugin skills join the session registry as a third root — the plugin root's `skills/` is the path handed to the reader, the 5 google-cloud-developer skills are present in `getLoadedSkills()`, and the two native roots are untouched (subsumes Test 12: the seam and the wiring are one assertion)
 - Test 30: plugin MCP servers join the session server map — `developer-knowledge` present as native `http` in `getLoadedMCPServers()`, adapter output accepted by `mcpConfigSchema`
 - Test 31: install URL forms → (repo, subpath, ref): repo root, trailing `.git`, `/tree/<ref>/<path>`, plain subpath, default `HEAD`; a non-GitHub host or an ssh remote is rejected with a clear report (pure parse, no network, no `git`)
 - Test 32: `freebuff plugin install <url>` on the google-cloud-developer URL — tarball fetch of the subdirectory (no git binary), lands at `<pluginsRoot>/google-cloud-developer` in a clean roots fixture, exit 0, renders the result above with zero reports (tmux e2e per AGENTS.md)
@@ -102,10 +120,10 @@ Honest limit to state in the test rather than paper over: `developer-knowledge` 
 
 ## Missing operations (null versions)
 
-- loadManifest(root) does not exist — Test 1 must fail loudly
+- ✅ loadManifest(root) — no longer a null version: Phase 1 landed it (T1–T11), so it is what the phase was missing. Its scope is the manifest alone — components, MCP, expansion and install are still null, which is what the rest of this list records
 - loadPlugin(root) Service does not exist — the Phase 1→2 seam must fail loudly
 - spec→native MCP server mapping does not exist — Phase 3 must fail loudly
-- placeholder expansion does not exist — Phase 4 must fail loudly
+- placeholder expansion does not exist — deferred with Phase 4 to the next PR, not a Phase-5 dependency for a remote-only plugin
 - plugin install <url> CLI command does not exist — Phase 5 must fail loudly (surface: commander, `cli/src/cli-args.ts`, Freebuff branch)
 - the plugins root (`~/.agents/plugins`) and the `.data` root are undefined and nothing scans them — no InstalledPlugin can be discovered anywhere yet
 
@@ -133,6 +151,7 @@ Stages per domain: clean-code 6, clean-architecture 5, test-review 6. A verdict 
 | T9 §5.2 parse and top-level shape, re-audited | 6/6 | 5/5 | 6/6 | A1 (a conditional inside a test body) fixed |
 | T10 §4.1.1 containment | 6/6 | 5/5 | 6/6 | A3 override |
 | T11 §5.1 missing manifest | 6/6 | 5/5 | 6/6 | none — sabotage: removing the read's `catch` turns this row and only this row red |
+| T13/T16 skills component (plugins/skills.ts) | 6/6 | 5/5 | 6/6 | one clean-arch S1.4 finding (the walk mutated the reader's returned map to remove a refused skill) fixed before recording — the map is now filtered, not mutated; override below for the fs use; sabotage proofs: 5 run, each turning exactly its row red (S1 hit the wrapper instead of a decision and was discarded) |
 | T1–T7, graduated before the two missing stages were read | 6/6 | **3/5 stages were applied** | 6/6 | clean-architecture 04 (components) and 05 (high-level) had never been read; re-audit in Phase 6 |
 
 Overrides:
@@ -141,3 +160,5 @@ Overrides:
 - **clean-architecture Stage 3 item 1, Stage 5 item 2** — `plugins/containment.ts` imports `node:fs`. §4.1.1 defines the rule over filesystem-resolved paths, and `util/path.ts` delegates resolution to callers by its own docstring, so a pure predicate would push the resolve-first duty onto every Phase 2/3 call site — the bug T10 exists to prevent. Accepted 2026-09-14.
 - **clean-architecture Stage 4 item 4 (CCP)** — the containment decision spans `util/path.ts` (compare) and `plugins/containment.ts` (resolve + rule). Justified: the util's other consumer compares lexically on purpose (`project-file-tree.ts:317`), so the two halves change for different reasons (REP/CRP).
 - **test-review Stage 3 item 3** — tests drive a real filesystem. §5.1's contract is a manifest at a path, `readPluginJson` is the Humble Object that keeps that boundary thin (clean-code Stage 5 item 4), and Stage 4 item 2 names the filesystem among the genuine external boundaries mocks are reserved for.
+- **clean-architecture Stage 3 item 1 (DIP)** — `plugins/skills.ts` imports `node:fs` (readdir/stat) for discovery, beside the injected reader. §4.1.1's boundary 3 needs the candidates enumerated *before* delegation to know which to exclude, and the reader's own docstring pins discovery-by-directory as its contract; injecting an enumerator too would double the seam to trade one import for two parameters. Accepted 2026-09-14 — the alternative (a second injected function per §4.1.1 boundary) is recorded as the first thing to revisit if Phase 3 wants the same shape for `mcp.json`.
+- **Windows fixture note (test-review Stage 2)** — junctions cannot point at a file (probed: the junction is created but every stat/read on it then throws ENOENT), so T16's per-skill escape fixture makes the skill *directory* the reparse point, with a real SKILL.md inside its target — the honest escape, since the reader would load that skill from outside the root.
