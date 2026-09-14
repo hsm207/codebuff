@@ -18,7 +18,7 @@ Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md 
 - ✅ Test 2: §5.5 name constraints — invalid list (My-Plugin, -start, has--double, too.many..dots, empty, 65 chars) each → not ok + report naming `name`; valid list (my-plugin, acme.tools, lint3r, a) plus the 64-char inclusive edge → ok
 - ✅ Test 3: §5.3 required fields — missing or wrong-typed $schema/name → not ok; no manifest object produced (Factory refuses)
 - ✅ Test 4: §5.2 unknown top-level field → ok + report naming it; field NOT carried on the parsed manifest
-- Test 5: §8.1 extensions — absent → undefined, no report; object → carried onto the manifest unchanged, no reports about its contents; non-object → ok + report, left undefined
+- ✅ Test 5: §8.1 extensions — absent → undefined, no report; object → carried onto the manifest unchanged, no reports about its contents; non-object → ok + report, left undefined
 - Test 6: §5.2 $schema selection — unrecognized version canonical URL → not ok + unsupported-version report; non-canonical http:// variant → not ok; no network fetch attempted
 - Test 7: §5.4 over-rejection guard — version "banana", homepage "not a url", license "nope" → ok, carried verbatim (spec: MUST NOT reject solely on these)
 - Test 8: §5.4 author fatality — unknown key, non-string value, whole-field non-object → not ok; {} → ok
@@ -64,8 +64,8 @@ Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md 
 - ✅ F2 immutable report assembly — `reports.push(...)` mutated a local array in `loadManifest` (clean-arch S1.4, clean-code S4.3)
 - ✅ F5 `isPlainObject` extraction — the typeof/null/array check appeared twice and forced two `as Record<string, unknown>` casts (clean-code S2.1, S2.3)
 - F3 composed report assertion — the non-object extensions test runs 11 physical lines (10-line cap) and four tests repeat the section+message probe (test-review S1.4, clean-code S5.2) → one `expectReportAbout(reports, { section, field })` helper
-- F4 contract types live in the outer module — the policy module imports its contract from `manifest.ts`, so the inner module depends outward and the file graph cycles (type-only, erased at runtime) (clean-arch S3.1 DIP, S4.1 ADP, S4.2 SDP) → move `PluginManifest`/`PluginReport`/`LoadManifestResult` inward and re-export from `manifest.ts`
-- F6 temp plugin roots are never removed — `makePluginRoot` recreates a dir per test but discards none (test-review S4.1) → `rmSync(root, { recursive: true, force: true })` in an `afterEach`
+- ✅ F4 contract types moved inward — `PluginManifest` now lives with its rules in `manifest-policy.ts`, `PluginReport` in its own `report.ts` (every component produces them), and the I/O module imports both; no edge points outward any more (drove: policy imported its contract from the I/O module — clean-arch S3.1 DIP, S4.1 ADP, S4.2 SDP). `LoadManifestResult` stayed in `manifest.ts`: it is the load use case's own result and only consumes inward types
+- ✅ F6 temp plugin roots are removed per test — `makePluginRoot` registers each root and an `afterEach` drains the registry with `rmSync(root, { recursive: true, force: true })`; verified 0 left after a full run (drove: `makePluginRoot` recreated a dir per test but discarded none — test-review S4.1). 597 dirs left over before the fix were deleted
 - F7 report-order overspecification — "each unknown field gets its own report" asserts `reports[0]`/`[1]`, an order §5.2 does not mandate (test-review S5.2) → set comparison, keeping the two-distinct-reports strength
 - F1 uncovered refusal paths — §5.1 no manifest, §5.2 non-JSON, §5.2 non-object top level have no tests (test-review S5.1) → already scheduled as Test 9 and Test 11 in Phase 1
 
@@ -85,7 +85,7 @@ Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md 
 - the leak rule (check.ts) therefore fires on *pushed* PR-bound branches, not on local branches mid-work
 - delete this section at promotion time along with the files themselves (strip = `git rebase --onto origin/main` + restore on driver)
 - docstrings tiered by visibility: public-facing declarations get one, full stop (duty, not taste — full contract: purpose, failure modes, invariants, spec citations); private helpers optional by default, earning one only for whys the code cannot express (esoteric/paper algorithm → explain + link source; convoluted bug workaround → explain + link issue) — otherwise comment blocks bury the code and break the file-size/density criteria. Content governed everywhere: ubiquitous language, no textbook dialect ("first-class", "composed assertion"), no restating the name — enrich with the contract instead. Inline comments stay the grimace category (extraction signal) — handbook Clean Code Ch 5. Production-only tiering: test fixtures stay docstring-mandatory (test-review Stage 2 Item 1). Audience = fellow programmers & the curious domain expert
-- audit each phase against the clean-code and test-review checklists plus the lessons index at phase close (standard set 2026-09-14, T1 audit)
+- every test written is checked against all three checklists — clean-code, clean-architecture, test-review — as soon as it is written; strictly, no exceptions (human ruling 2026-09-14). Phase close adds the full audit plus the lessons index
 
 - skill-registry takes the plugin root as a third source; the two native roots untouched
 - one adapter module maps spec server variants → native mcpConfig shapes
