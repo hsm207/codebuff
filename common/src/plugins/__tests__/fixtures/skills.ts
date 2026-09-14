@@ -20,10 +20,10 @@ import type { PluginReport } from '../../report'
  * (core ← manifest ← skills).
  */
 
-/** A native skill directory name the reader accepts. */
+/** A skill directory name the reader accepts. */
 export const SKILL_NAME = 'gcloud'
 
-/** A second native skill directory name, so sibling rows can be asserted. */
+/** A second skill directory name, so sibling rows can be asserted. */
 export const OTHER_SKILL_NAME = 'finding-google-skills'
 
 /**
@@ -35,7 +35,7 @@ export function makeRootWithoutSkills(): string {
 }
 
 /**
- * A plugin root whose `skills/` holds one valid native skill — a directory
+ * A plugin root whose `skills/` holds one valid skill — a directory
  * named for the skill, containing a SKILL.md whose frontmatter name matches
  * the directory.
  */
