@@ -25,6 +25,11 @@ const MANIFEST_FIELDS = new Set([
  * be JSON and MUST contain a top-level object"). An array or a primitive is
  * fatal — the plugin does not exist — and there are no fields to read from
  * it.
+ *
+ * Couldn't find a definition of "object" in the spec, so assume the JSON
+ * object of RFC 8259 — the structured type whose members carry names. An
+ * array holds its members by position instead, and §5.2's rules are written
+ * about named fields.
  */
 export function requireTopLevelObject(
   parsed: unknown,
