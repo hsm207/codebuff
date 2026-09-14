@@ -45,7 +45,11 @@ export function loadManifest(root: string): LoadManifestResult {
 
   const parsed = json.parsed
   if (!isPlainObject(parsed)) {
-    return { ok: false, reason: 'plugin.json must contain a top-level object (§5.2)', reports: [] }
+    return {
+      ok: false,
+      reason: 'plugin.json must contain a top-level object (§5.2)',
+      reports: [],
+    }
   }
 
   const extensions = validateExtensions(parsed)
@@ -65,16 +69,23 @@ export function loadManifest(root: string): LoadManifestResult {
  * Reads the manifest bytes at `<root>/plugin.json`, or the §5.1 refusal when
  * the package carries no manifest.
  */
-function readPluginJson(root: string): { ok: true; raw: string } | { ok: false; reason: string } {
+function readPluginJson(
+  root: string,
+): { ok: true; raw: string } | { ok: false; reason: string } {
   try {
-    return { ok: true, raw: readFileSync(path.join(root, 'plugin.json'), 'utf8') }
+    return {
+      ok: true,
+      raw: readFileSync(path.join(root, 'plugin.json'), 'utf8'),
+    }
   } catch {
     return { ok: false, reason: 'no plugin.json at the plugin root (§5.1)' }
   }
 }
 
 /** Parses the manifest bytes, or the §5.2 refusal when they are not JSON. */
-function parsePluginJson(raw: string): { ok: true; parsed: unknown } | { ok: false; reason: string } {
+function parsePluginJson(
+  raw: string,
+): { ok: true; parsed: unknown } | { ok: false; reason: string } {
   try {
     return { ok: true, parsed: JSON.parse(raw) }
   } catch {

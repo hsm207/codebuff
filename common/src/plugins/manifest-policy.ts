@@ -44,7 +44,8 @@ export const PLUGIN_NAME_MAX_LENGTH = 64
  * Fragment map: the two lookaheads ban `--`/`..`; the first class requires
  * an alphanumeric start; the optional tail requires an alphanumeric end.
  */
-const PLUGIN_NAME_PATTERN = /^(?!.*--)(?!.*\.\.)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/
+const PLUGIN_NAME_PATTERN =
+  /^(?!.*--)(?!.*\.\.)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/
 
 /**
  * The closed §5.2 top-level set — the only fields a conforming manifest may
@@ -80,7 +81,9 @@ type StringMetadataField = (typeof STRING_METADATA_FIELDS)[number]
  * True for a JSON object: not a primitive, not null, not an array. The null
  * check is required because `typeof null === 'object'`.
  */
-export function isPlainObject(value: unknown): value is Record<string, unknown> {
+export function isPlainObject(
+  value: unknown,
+): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
@@ -100,8 +103,12 @@ function isValidPluginName(name: string): boolean {
  * report requirement applies whenever a manifest is examined, not only when
  * a plugin loads.
  */
-export function reportUnknownFields(fields: Record<string, unknown>): PluginReport[] {
-  const unknown = Object.keys(fields).filter((field) => !MANIFEST_FIELDS.has(field))
+export function reportUnknownFields(
+  fields: Record<string, unknown>,
+): PluginReport[] {
+  const unknown = Object.keys(fields).filter(
+    (field) => !MANIFEST_FIELDS.has(field),
+  )
   return unknown.map((field) => ({
     severity: 'warning',
     section: '§5.2',
@@ -144,7 +151,10 @@ export function validateManifestFields(
   }
 
   if (fields.$schema !== PLUGIN_MANIFEST_SCHEMA_ID) {
-    return { ok: false, reason: `unsupported manifest $schema "${fields.$schema}" (§5.2)` }
+    return {
+      ok: false,
+      reason: `unsupported manifest $schema "${fields.$schema}" (§5.2)`,
+    }
   }
 
   if (typeof fields.name !== 'string') {
@@ -163,7 +173,14 @@ export function validateManifestFields(
   const metadata = readStringMetadata(fields)
   if (!metadata.ok) return { ok: false, reason: metadata.reason }
 
-  return { ok: true, manifest: { $schema: fields.$schema, name: fields.name, ...metadata.values } }
+  return {
+    ok: true,
+    manifest: {
+      $schema: fields.$schema,
+      name: fields.name,
+      ...metadata.values,
+    },
+  }
 }
 
 /**
@@ -171,9 +188,10 @@ export function validateManifestFields(
  * continue loading. Namespace values are not validated: freebuff implements no
  * extension namespaces (§8.1).
  */
-export function validateExtensions(
-  fields: Record<string, unknown>,
-): { reports: PluginReport[]; extensions: Record<string, unknown> | undefined } {
+export function validateExtensions(fields: Record<string, unknown>): {
+  reports: PluginReport[]
+  extensions: Record<string, unknown> | undefined
+} {
   const value = fields.extensions
   if (value === undefined) return { reports: [], extensions: undefined }
 
@@ -183,7 +201,8 @@ export function validateExtensions(
         {
           severity: 'warning',
           section: '§8.1',
-          message: 'manifest.extensions must be an object of namespace entries; value ignored',
+          message:
+            'manifest.extensions must be an object of namespace entries; value ignored',
         },
       ],
       extensions: undefined,

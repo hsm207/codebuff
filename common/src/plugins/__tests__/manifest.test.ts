@@ -7,10 +7,12 @@ import { afterEach, describe, expect, spyOn, test } from 'bun:test'
 import { loadManifest, type LoadManifestResult } from '../manifest'
 
 /** The $schema id every valid 1.0.0 manifest must carry (spec §5.2). */
-const CANONICAL_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
+const CANONICAL_SCHEMA =
+  'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
 
 /** A canonical-looking schema id for a spec version this client cannot load. */
-const UNSUPPORTED_SCHEMA = 'https://agent-plugins.org/schemas/2.0.0/plugin.schema.json'
+const UNSUPPORTED_SCHEMA =
+  'https://agent-plugins.org/schemas/2.0.0/plugin.schema.json'
 
 /** Longest allowed plugin name — 64 is the inclusive upper edge (spec §5.5). */
 const MAX_NAME_LENGTH = 64
@@ -35,7 +37,8 @@ const testSpies: ReturnType<typeof spyOn>[] = []
 
 afterEach(() => {
   for (const spy of testSpies.splice(0)) spy.mockRestore()
-  for (const root of pluginRoots.splice(0)) rmSync(root, { recursive: true, force: true })
+  for (const root of pluginRoots.splice(0))
+    rmSync(root, { recursive: true, force: true })
 })
 
 /**
@@ -63,7 +66,11 @@ function makePluginRoot(manifestJson: string): string {
  */
 function makeManifestRoot(extraFields: Record<string, unknown> = {}): string {
   return makePluginRoot(
-    JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin', ...extraFields }),
+    JSON.stringify({
+      $schema: CANONICAL_SCHEMA,
+      name: 'minimal-plugin',
+      ...extraFields,
+    }),
   )
 }
 
@@ -88,7 +95,10 @@ function expectManifestOk(result: LoadManifestResult) {
  * reason blames the field named by `blame`, so a rejection for the wrong
  * cause still fails the test.
  */
-function expectManifestRejected(result: LoadManifestResult, blame: string): void {
+function expectManifestRejected(
+  result: LoadManifestResult,
+  blame: string,
+): void {
   expect(result.ok).toBe(false)
   if (result.ok) throw new Error(`expected rejection blaming ${blame}, got ok`)
   expect(result.reason).toContain(blame)
@@ -96,7 +106,9 @@ function expectManifestRejected(result: LoadManifestResult, blame: string): void
 
 describe('loadManifest', () => {
   test('minimal valid manifest (spec 1.0.0 §5.2 example) → ok with no reports', () => {
-    const root = makePluginRoot(JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin' }))
+    const root = makePluginRoot(
+      JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin' }),
+    )
 
     const result = loadManifest(root)
 
@@ -113,7 +125,9 @@ describe('loadManifest', () => {
       ['a', 'spec valid list'],
       ['a'.repeat(MAX_NAME_LENGTH), '64 chars — inclusive edge (derived)'],
     ])('name %j → ok (%s)', (name) => {
-      const root = makePluginRoot(JSON.stringify({ $schema: CANONICAL_SCHEMA, name }))
+      const root = makePluginRoot(
+        JSON.stringify({ $schema: CANONICAL_SCHEMA, name }),
+      )
 
       const result = loadManifest(root)
 
@@ -128,9 +142,14 @@ describe('loadManifest', () => {
       ['too.many..dots', 'consecutive periods (spec invalid list)'],
       ['', 'empty (spec invalid list)'],
       ['end-', 'trailing hyphen (derived from start/end rule)'],
-      ['a'.repeat(MAX_NAME_LENGTH + 1), '65 chars — one past the edge (derived)'],
+      [
+        'a'.repeat(MAX_NAME_LENGTH + 1),
+        '65 chars — one past the edge (derived)',
+      ],
     ])('name %j → rejected (%s)', (name) => {
-      const root = makePluginRoot(JSON.stringify({ $schema: CANONICAL_SCHEMA, name }))
+      const root = makePluginRoot(
+        JSON.stringify({ $schema: CANONICAL_SCHEMA, name }),
+      )
 
       const result = loadManifest(root)
 
@@ -168,7 +187,9 @@ describe('loadManifest', () => {
      * is rejected with the reason naming name.
      */
     test('a manifest with a non-string name is rejected, naming name', () => {
-      const root = makePluginRoot(JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 42 }))
+      const root = makePluginRoot(
+        JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 42 }),
+      )
 
       const result = loadManifest(root)
 
@@ -180,7 +201,9 @@ describe('loadManifest', () => {
      * plugin is rejected with the reason naming $schema.
      */
     test('a manifest with a non-string $schema is rejected, naming $schema', () => {
-      const root = makePluginRoot(JSON.stringify({ $schema: null, name: 'minimal-plugin' }))
+      const root = makePluginRoot(
+        JSON.stringify({ $schema: null, name: 'minimal-plugin' }),
+      )
 
       const result = loadManifest(root)
 
@@ -262,7 +285,11 @@ describe('loadManifest', () => {
      */
     test('one unknown field is reported and ignored, plugin still loads', () => {
       const root = makePluginRoot(
-        JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin', bogus: 1 }),
+        JSON.stringify({
+          $schema: CANONICAL_SCHEMA,
+          name: 'minimal-plugin',
+          bogus: 1,
+        }),
       )
 
       const result = loadManifest(root)
@@ -306,7 +333,9 @@ describe('loadManifest', () => {
      * loading).
      */
     test('unknown-field report is included in a fatal rejection', () => {
-      const root = makePluginRoot(JSON.stringify({ $schema: CANONICAL_SCHEMA, bogus: 1 }))
+      const root = makePluginRoot(
+        JSON.stringify({ $schema: CANONICAL_SCHEMA, bogus: 1 }),
+      )
 
       const result = loadManifest(root)
 
@@ -316,7 +345,6 @@ describe('loadManifest', () => {
       expect(result.reports).toHaveLength(1)
       expect(result.reports[0].message).toContain('bogus')
     })
-
   })
 
   describe('extensions field (spec §8.1)', () => {
@@ -345,7 +373,11 @@ describe('loadManifest', () => {
     test('extensions object is carried onto the manifest unchanged, with no reports', () => {
       const extensions = { 'com.example.client': { setting: true } }
       const root = makePluginRoot(
-        JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin', extensions }),
+        JSON.stringify({
+          $schema: CANONICAL_SCHEMA,
+          name: 'minimal-plugin',
+          extensions,
+        }),
       )
 
       const result = loadManifest(root)
@@ -362,7 +394,11 @@ describe('loadManifest', () => {
      */
     test('non-object extensions is reported and ignored', () => {
       const root = makePluginRoot(
-        JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin', extensions: 'nope' }),
+        JSON.stringify({
+          $schema: CANONICAL_SCHEMA,
+          name: 'minimal-plugin',
+          extensions: 'nope',
+        }),
       )
 
       const result = loadManifest(root)
