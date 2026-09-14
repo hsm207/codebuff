@@ -26,7 +26,7 @@ function makePluginRoot(manifestJson: string): string {
  *
  * Rejection rows use expectManifestRejected rather than negating this one:
  * a rejection is not the boolean complement of success — "not ok" also
- * covers a crash, which the Factory forbids — and the rejection helper
+ * covers a crash, which the loader never does — and the rejection helper
  * additionally asserts the reason blames the field under test.
  */
 function expectManifestOk(result: LoadManifestResult) {
@@ -189,10 +189,11 @@ describe('loadManifest', () => {
     /**
      * Given a manifest with an unknown field and a fatal violation (name
      * missing), when loaded, the plugin is rejected (§5.3 fatality wins)
-     * and the unknown-field report still rides the rejection (§5.2
-     * MUST-report is not conditioned on the plugin loading).
+     * and the unknown-field report is still included in the rejection
+     * result (§5.2 report requirement is not conditioned on the plugin
+     * loading).
      */
-    test('unknown-field reports ride a fatal rejection', () => {
+    test('unknown-field report is included in a fatal rejection', () => {
       const root = makePluginRoot(JSON.stringify({ $schema: CANONICAL_SCHEMA, bogus: 1 }))
 
       const result = loadManifest(root)
