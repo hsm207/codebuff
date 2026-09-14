@@ -25,7 +25,7 @@ Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md 
 - ✅ Test 7: §5.4 metadata — content-invalid values (version "banana", homepage/repository "not a url", license "nope") → ok, carried verbatim, no reports (spec: MUST NOT reject solely on these); a field whose JSON type is wrong (version 42) → not ok (§5.2 fatality)
 - ✅ Test 8: §5.4 author fatality + keywords type — unknown key, non-string value, whole-field non-object → not ok; a permitted author and keywords are carried verbatim; keywords must be an array of strings, a non-string element included → not ok
 - ✅ Test 9: §5.2 manifest is JSON and a top-level object — invalid JSON → not ok; top-level array/primitive/null → not ok
-- Test 10: §4.1.1 containment — plugin.json symlink/junction resolving outside the root → not ok (Windows fixture: junctions, no privilege needed)
+- ✅ Test 10: §4.1.1 containment — a plugin.json resolving outside the root → not ok (junction fixture: this machine refuses file symlinks with EPERM, junctions need no privilege); a root reached through a reparse point with its manifest inside → ok (both sides are filesystem-resolved)
 - Test 11: §5.1 absence — no plugin.json in root → not ok + "no manifest" report
 
 ## Phase 2: skills (sketch — re-derive from the model before starting)
@@ -117,8 +117,26 @@ Honest limit to state in the test rather than paper over: `developer-knowledge` 
 - delete this section at promotion time along with the files themselves (strip = `git rebase --onto origin/main` + restore on driver)
 - strip before the PR: the local formatter hook (`scripts/hooks/pre-commit` plus the local `core.hooksPath` setting) — prettier is declared upstream but never run there, so this hook is our tooling and not theirs
 - docstrings tiered by visibility: public-facing declarations get one, full stop (duty, not taste — full contract: purpose, failure modes, invariants, spec citations); private helpers optional by default, earning one only for whys the code cannot express (esoteric/paper algorithm → explain + link source; convoluted bug workaround → explain + link issue) — otherwise comment blocks bury the code and break the file-size/density criteria. Content governed everywhere: ubiquitous language, no textbook dialect ("first-class", "composed assertion"), no restating the name — enrich with the contract instead. Inline comments stay the grimace category (extraction signal) — handbook Clean Code Ch 5. Production-only tiering: test fixtures stay docstring-mandatory (test-review Stage 2 Item 1). Audience = fellow programmers & the curious domain expert
-- every test written is checked against all three checklists — clean-code, clean-architecture, test-review — as soon as it is written; strictly, no exceptions (human ruling 2026-09-14). Phase close adds the full audit plus the lessons index
+- every test is audited against all three checklists — clean-code (6 stages), clean-architecture (5), test-review (6) — **at the conclusion of the test and before its code commit**, with every stage read fresh rather than recalled, and the verdict plus any override written into the Audit record below; strictly, no exceptions (human ruling 2026-09-14, restated the same day after a pass was found to have skipped two clean-architecture stages). A test is not finished until that row exists. Phase close adds the full audit plus the lessons index
 
 - skill-registry takes the plugin root as a third source; the two native roots untouched
 - one adapter module maps spec server variants → native mcpConfig shapes
 - loader returns { installed: InstalledPlugin, reports } and the CLI renders reports; no logging from common/
+
+## Audit record (human ruling 2026-09-14: hand-walk all 17 stages fresh per change)
+
+Stages per domain: clean-code 6, clean-architecture 5, test-review 6. A verdict is the count of stages passed. Every override names the item it exempts, per the checklists' own traceability rule — an override is a pass under a named exception, never a silent one.
+
+| Scope | clean-code | clean-architecture | test-review | Findings |
+| --- | --- | --- | --- | --- |
+| T8 §5.4 metadata, re-audited in the retro pass | 6/6 | 5/5 | 6/6 | A5 (two accumulators in `metadata.ts`) fixed |
+| T9 §5.2 parse and top-level shape, re-audited | 6/6 | 5/5 | 6/6 | A1 (a conditional inside a test body) fixed |
+| T10 §4.1.1 containment | 6/6 | 5/5 | 6/6 | A3 override |
+| T1–T7, graduated before the two missing stages were read | 6/6 | **3/5 stages were applied** | 6/6 | clean-architecture 04 (components) and 05 (high-level) had never been read; re-audit in Phase 6 |
+
+Overrides:
+
+- **test-review Stage 3 item 1** — the two `throw`s inside `expectManifestOk` / `expectManifestRejected`. Those are assertion helpers, not tests, and TypeScript cannot narrow from an `expect` call, so the throw is the narrowing device; the alternatives are a cast or an assertion too weak to prove the branch. No `*.test.ts` in the component contains a conditional.
+- **clean-architecture Stage 3 item 1, Stage 5 item 2** — `plugins/containment.ts` imports `node:fs`. §4.1.1 defines the rule over filesystem-resolved paths, and `util/path.ts` delegates resolution to callers by its own docstring, so a pure predicate would push the resolve-first duty onto every Phase 2/3 call site — the bug T10 exists to prevent. Accepted 2026-09-14.
+- **clean-architecture Stage 4 item 4 (CCP)** — the containment decision spans `util/path.ts` (compare) and `plugins/containment.ts` (resolve + rule). Justified: the util's other consumer compares lexically on purpose (`project-file-tree.ts:317`), so the two halves change for different reasons (REP/CRP).
+- **test-review Stage 3 item 3** — tests drive a real filesystem. §5.1's contract is a manifest at a path, `readPluginJson` is the Humble Object that keeps that boundary thin (clean-code Stage 5 item 4), and Stage 4 item 2 names the filesystem among the genuine external boundaries mocks are reserved for.
