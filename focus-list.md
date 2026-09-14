@@ -19,7 +19,7 @@ Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md 
 - ✅ Test 3: §5.3 required fields — missing or wrong-typed $schema/name → not ok; no manifest object produced (Factory refuses)
 - ✅ Test 4: §5.2 unknown top-level field → ok + report naming it; field NOT carried on the parsed manifest
 - ✅ Test 5: §8.1 extensions — absent → undefined, no report; object → carried onto the manifest unchanged, no reports about its contents; non-object → ok + report, left undefined
-- Test 6: §5.2 $schema selection — unrecognized version canonical URL → not ok + unsupported-version report; non-canonical http:// variant → not ok; no network fetch attempted
+- ✅ Test 6: §5.2 $schema selection — unrecognized version canonical URL → not ok + unsupported-version report; non-canonical http:// variant → not ok; no network fetch attempted
 - Test 7: §5.4 over-rejection guard — version "banana", homepage "not a url", license "nope" → ok, carried verbatim (spec: MUST NOT reject solely on these)
 - Test 8: §5.4 author fatality — unknown key, non-string value, whole-field non-object → not ok; {} → ok
 - Test 9: §5.2 manifest bytes — invalid JSON → not ok; top-level array/string/number → not ok
