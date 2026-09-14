@@ -11,7 +11,9 @@ import type { PluginReport } from './report'
 
 /**
  * The parsed manifest (spec §5). An invalid manifest means the plugin does
- * not exist — no components may be discovered or executed (§5.3).
+ * not exist — no components may be discovered or executed (§5.3). Metadata
+ * values are carried as the author declared them: their JSON type is
+ * checked, never their content (§5.4).
  */
 export interface PluginManifest {
   $schema: string
@@ -22,6 +24,11 @@ export interface PluginManifest {
    * absent or when a non-object value was reported and ignored.
    */
   extensions?: Record<string, unknown>
+  version?: string
+  description?: string
+  homepage?: string
+  repository?: string
+  license?: string
 }
 
 /** The canonical manifest `$schema` id for Agent Plugins v1.0.0 (spec §5.2). */
@@ -57,6 +64,18 @@ const MANIFEST_FIELDS = new Set([
   'extensions',
 ])
 
+/** The §5.4 metadata fields whose JSON type is a string, in spec order. */
+const STRING_METADATA_FIELDS = [
+  'version',
+  'description',
+  'homepage',
+  'repository',
+  'license',
+] as const
+
+/** One field name from the §5.4 string metadata table. */
+type StringMetadataField = (typeof STRING_METADATA_FIELDS)[number]
+
 /**
  * True for a JSON object: not a primitive, not null, not an array. The null
  * check is required because `typeof null === 'object'`.
@@ -91,8 +110,31 @@ export function reportUnknownFields(fields: Record<string, unknown>): PluginRepo
 }
 
 /**
- * Applies the §5.2–§5.5 field rules to the parsed object. Returns the two
- * fields the manifest carries today, or the reason the plugin does not exist.
+ * Reads the §5.4 metadata strings the manifest carries. A field that is
+ * present must be a string — metadata is validated by JSON type and nothing
+ * else, so a value is never judged for Semantic Versioning, URL, or SPDX
+ * validity.
+ */
+function readStringMetadata(
+  fields: Record<string, unknown>,
+):
+  | { ok: true; values: Partial<Record<StringMetadataField, string>> }
+  | { ok: false; reason: string } {
+  const values: Partial<Record<StringMetadataField, string>> = {}
+  for (const field of STRING_METADATA_FIELDS) {
+    const value = fields[field]
+    if (value === undefined) continue
+    if (typeof value !== 'string') {
+      return { ok: false, reason: `manifest.${field} must be a string (§5.4)` }
+    }
+    values[field] = value
+  }
+  return { ok: true, values }
+}
+
+/**
+ * Applies the §5.2–§5.5 field rules to the parsed object. Returns the
+ * manifest fields freebuff carries, or the reason the plugin does not exist.
  */
 export function validateManifestFields(
   fields: Record<string, unknown>,
@@ -118,7 +160,10 @@ export function validateManifestFields(
     }
   }
 
-  return { ok: true, manifest: { $schema: fields.$schema, name: fields.name } }
+  const metadata = readStringMetadata(fields)
+  if (!metadata.ok) return { ok: false, reason: metadata.reason }
+
+  return { ok: true, manifest: { $schema: fields.$schema, name: fields.name, ...metadata.values } }
 }
 
 /**

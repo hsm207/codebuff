@@ -15,6 +15,18 @@ const UNSUPPORTED_SCHEMA = 'https://agent-plugins.org/schemas/2.0.0/plugin.schem
 /** Longest allowed plugin name — 64 is the inclusive upper edge (spec §5.5). */
 const MAX_NAME_LENGTH = 64
 
+/**
+ * §5.4 metadata that is correct in JSON type but invalid by content — freebuff
+ * carries it without judging Semantic Versioning, URLs, or SPDX identifiers.
+ */
+const CONTENT_INVALID_METADATA = {
+  version: 'banana',
+  description: 'A plugin that does nothing yet',
+  homepage: 'not a url',
+  repository: 'also not a url',
+  license: 'nope',
+}
+
 /** Plugin roots created by the running test, removed when it finishes. */
 const pluginRoots: string[] = []
 
@@ -43,6 +55,16 @@ function makePluginRoot(manifestJson: string): string {
   pluginRoots.push(root)
   writeFileSync(path.join(root, 'plugin.json'), manifestJson, 'utf8')
   return root
+}
+
+/**
+ * A plugin root whose manifest carries the required fields plus the given
+ * extras, so a test body states only the field it is about.
+ */
+function makeManifestRoot(extraFields: Record<string, unknown> = {}): string {
+  return makePluginRoot(
+    JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin', ...extraFields }),
+  )
 }
 
 /**
@@ -200,6 +222,37 @@ describe('loadManifest', () => {
     })
   })
 
+  describe('metadata fields (spec §5.4)', () => {
+    /**
+     * Given a manifest whose metadata is correct in JSON type but invalid by
+     * content, when loaded, the plugin loads, every value reaches the manifest
+     * verbatim, and no report is emitted (§5.4 MUST NOT reject on the content
+     * of version, homepage, repository, or license).
+     */
+    test('content-invalid metadata is carried verbatim, with no reports', () => {
+      const root = makeManifestRoot(CONTENT_INVALID_METADATA)
+
+      const result = loadManifest(root)
+
+      const { manifest, reports } = expectManifestOk(result)
+      expect(manifest).toMatchObject(CONTENT_INVALID_METADATA)
+      expect(reports).toHaveLength(0)
+    })
+
+    /**
+     * Given a manifest whose version is not a string, when loaded, the plugin
+     * is rejected — metadata is validated by JSON type (§5.4), and a type
+     * mismatch is fatal (§5.2).
+     */
+    test('a metadata field with the wrong JSON type is rejected', () => {
+      const root = makeManifestRoot({ version: 42 })
+
+      const result = loadManifest(root)
+
+      expectManifestRejected(result, 'version')
+    })
+  })
+
   describe('unknown top-level fields (spec §5.2)', () => {
     /**
      * Given a valid manifest carrying one unknown top-level field, when
@@ -264,28 +317,6 @@ describe('loadManifest', () => {
       expect(result.reports[0].message).toContain('bogus')
     })
 
-    /**
-     * Given a manifest carrying permitted-but-unimplemented fields
-     * (version, description, license), when loaded, no unknown-field report
-     * is emitted — the §5.2 permitted set is the full ten-field list, not
-     * just the fields freebuff reads today.
-     */
-    test('permitted-but-unimplemented fields produce no reports', () => {
-      const root = makePluginRoot(
-        JSON.stringify({
-          $schema: CANONICAL_SCHEMA,
-          name: 'minimal-plugin',
-          version: '1.2.0',
-          description: 'Brief plugin description',
-          license: 'MIT',
-        }),
-      )
-
-      const result = loadManifest(root)
-
-      const { reports } = expectManifestOk(result)
-      expect(reports).toHaveLength(0)
-    })
   })
 
   describe('extensions field (spec §8.1)', () => {
