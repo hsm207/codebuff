@@ -116,10 +116,8 @@ describe('top-level fields (spec §5.2)', () => {
 
     const result = loadManifest(root)
 
-    expect(result.ok).toBe(false)
-    if (result.ok) throw new Error('expected rejection')
-    expect(result.reason).toContain('name')
-    expect(result.reports).toHaveLength(1)
-    expect(result.reports[0].message).toContain('bogus')
+    const rejection = expectManifestRejected(result, 'name')
+    expect(rejection.reports).toHaveLength(1)
+    expect(rejection.reports[0].message).toContain('bogus')
   })
 })

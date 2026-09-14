@@ -1,4 +1,10 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -84,21 +90,21 @@ export const TOP_LEVEL_STRING_JSON = '"just a string"'
  */
 export const TOP_LEVEL_NULL_JSON = 'null'
 
-/** Plugin roots created by the running test, removed when it finishes. */
-const pluginRoots: string[] = []
+/** Temp directories created by the running test, removed when it finishes. */
+const tempDirs: string[] = []
 
 /** Spies created by the running test, restored when it finishes. */
 const testSpies: ReturnType<typeof spyOn>[] = []
 
 /**
- * Discards everything the running test created — spies first, then the plugin
- * roots — so no fixture state crosses into the next test and no temp directory
+ * Discards everything the running test created — spies first, then the temp
+ * directories — so no fixture state crosses into the next test and nothing
  * survives the run. Tests register it once with `afterEach`.
  */
 export function cleanUpManifestFixtures(): void {
   for (const spy of testSpies.splice(0)) spy.mockRestore()
-  for (const root of pluginRoots.splice(0))
-    rmSync(root, { recursive: true, force: true })
+  for (const dir of tempDirs.splice(0))
+    rmSync(dir, { recursive: true, force: true })
 }
 
 /**
@@ -114,8 +120,7 @@ export function watchNetworkAccess(): ReturnType<typeof spyOn> {
 
 /** A plugin root whose plugin.json holds exactly the given manifest text. */
 export function makePluginRoot(manifestJson: string): string {
-  const root = mkdtempSync(path.join(tmpdir(), 'freebuff-plugin-'))
-  pluginRoots.push(root)
+  const root = makeTempDir('freebuff-plugin-')
   writeFileSync(path.join(root, 'plugin.json'), manifestJson, 'utf8')
   return root
 }
@@ -127,13 +132,58 @@ export function makePluginRoot(manifestJson: string): string {
 export function makeManifestRoot(
   extraFields: Record<string, unknown> = {},
 ): string {
-  return makePluginRoot(
-    JSON.stringify({
-      $schema: CANONICAL_SCHEMA,
-      name: 'minimal-plugin',
-      ...extraFields,
-    }),
+  return makePluginRoot(minimalManifestJson(extraFields))
+}
+
+/**
+ * A plugin root whose `plugin.json` is a reparse point resolving to a valid
+ * manifest outside the root. The target directory's name extends the root's
+ * own, so a comparison that stopped at a path prefix would wrongly admit it:
+ * §4.1.1 compares filesystem-resolved paths, not their spelling.
+ */
+export function makeEscapingManifestRoot(): string {
+  const root = makeTempDir('freebuff-plugin-')
+  const outside = `${root}-outside`
+  tempDirs.push(outside)
+  mkdirSync(outside)
+  writeFileSync(
+    path.join(outside, 'plugin.json'),
+    minimalManifestJson(),
+    'utf8',
   )
+  symlinkSync(outside, path.join(root, 'plugin.json'), 'junction')
+  return root
+}
+
+/**
+ * A plugin root reached through a reparse point, with its manifest inside the
+ * resolved root — the arrangement §4.1.1 permits, and the one a check that
+ * resolved only the manifest would reject. That is the everyday case on a
+ * platform whose temp directory is itself a symlink.
+ */
+export function makeReparsePointRoot(): string {
+  const target = makePluginRoot(minimalManifestJson())
+  const root = path.join(makeTempDir('freebuff-plugin-link-'), 'root')
+  symlinkSync(target, root, 'junction')
+  return root
+}
+
+/** The §5.2 minimal manifest as JSON text, with the given fields added. */
+function minimalManifestJson(
+  extraFields: Record<string, unknown> = {},
+): string {
+  return JSON.stringify({
+    $schema: CANONICAL_SCHEMA,
+    name: 'minimal-plugin',
+    ...extraFields,
+  })
+}
+
+/** A registered temp directory the running test may fill. */
+function makeTempDir(prefix: string): string {
+  const dir = mkdtempSync(path.join(tmpdir(), prefix))
+  tempDirs.push(dir)
+  return dir
 }
 
 /**
@@ -156,13 +206,16 @@ export function expectManifestOk(result: LoadManifestResult) {
  * Asserts the plugin does not exist (the fatal branch) and that the loader's
  * reason names the cause given by `blame` — a field for field rules, the
  * refused shape or manifest text for the §5.2 structural rules — so a
- * rejection for the wrong cause still fails the test.
+ * rejection for the wrong cause still fails the test. Returns the rejection,
+ * so a row that also asserts on the reports it carries does not need its own
+ * narrowing branch.
  */
 export function expectManifestRejected(
   result: LoadManifestResult,
   blame: string,
-): void {
+): Extract<LoadManifestResult, { ok: false }> {
   expect(result.ok).toBe(false)
   if (result.ok) throw new Error(`expected rejection blaming ${blame}, got ok`)
   expect(result.reason).toContain(blame)
+  return result
 }
