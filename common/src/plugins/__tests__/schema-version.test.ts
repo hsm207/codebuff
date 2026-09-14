@@ -1,0 +1,47 @@
+import { afterEach, describe, expect, test } from 'bun:test'
+
+import { loadManifest } from '../manifest'
+
+import {
+  cleanUpManifestFixtures,
+  expectManifestRejected,
+  makePluginRoot,
+  UNSUPPORTED_SCHEMA,
+  watchNetworkAccess,
+} from './manifest-fixtures'
+
+afterEach(cleanUpManifestFixtures)
+
+describe('schema version selection (spec §5.2)', () => {
+  /**
+   * Given a manifest declaring a specification version this client does not
+   * support, when loaded, the plugin is rejected and the reason names the
+   * version it declared (§5.2 SHOULD report the unsupported version).
+   */
+  test('an unsupported version is rejected, naming the version it declared', () => {
+    const root = makePluginRoot(
+      JSON.stringify({ $schema: UNSUPPORTED_SCHEMA, name: 'minimal-plugin' }),
+    )
+
+    const result = loadManifest(root)
+
+    expectManifestRejected(result, UNSUPPORTED_SCHEMA)
+  })
+
+  /**
+   * Given a client loading a plugin, when the manifest is read, nothing
+   * reaches for the network to fetch the schema it names (§5.2 MUST NOT
+   * retrieve a schema while loading a plugin).
+   */
+  test('loading a plugin does not retrieve the declared schema', () => {
+    const fetchSpy = watchNetworkAccess()
+
+    const root = makePluginRoot(
+      JSON.stringify({ $schema: UNSUPPORTED_SCHEMA, name: 'minimal-plugin' }),
+    )
+
+    loadManifest(root)
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+})

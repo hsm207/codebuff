@@ -1,20 +1,27 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
+import { validateExtensions } from './manifest/extensions'
+import { readMetadata } from './manifest/metadata'
+import { readPluginName } from './manifest/plugin-name'
+import { readSchemaVersion } from './manifest/schema-version'
 import {
-  isPlainObject,
   reportUnknownFields,
-  validateExtensions,
-  validateManifestFields,
-  type PluginManifest,
-} from './manifest-policy'
+  requireTopLevelObject,
+} from './manifest/top-level-fields'
+
+import type { PluginManifest } from './manifest/plugin-manifest'
 import type { PluginReport } from './report'
 
 /**
- * Reads and validates `plugin.json` for Agent Plugins v1.0.0. An invalid
- * manifest means the plugin does not exist, and nothing else may be
- * discovered or executed (spec §5.3). This module reads the file and parses
- * the JSON; the manifest contract and field rules live in manifest-policy.ts.
+ * Reads and validates `plugin.json` for Agent Plugins v1.0.0 — the load use
+ * case of the manifest component. An invalid manifest means the plugin does
+ * not exist, and nothing else may be discovered or executed (spec §5.3).
+ *
+ * This module owns the §5.2 fatality order: which rule runs when, and that
+ * only an unknown top-level field or a non-object `extensions` keeps the load
+ * going. The rules themselves live one section per module in `manifest/`, and
+ * the contract they share lives in `manifest/plugin-manifest.ts`.
  *
  * Spec: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md
  */
@@ -35,6 +42,10 @@ export type LoadManifestResult =
  * discovery entirely.
  * Failures and spec-mandated reports are returned in the result:
  * `ok: false` with a reason, or `ok: true` with reports to render.
+ *
+ * The two non-fatal §5.2 violations are collected before the fatal rules run,
+ * because the spec requires them reported even when the manifest they sit on
+ * is otherwise rejected.
  */
 export function loadManifest(root: string): LoadManifestResult {
   const file = readPluginJson(root)
@@ -43,24 +54,32 @@ export function loadManifest(root: string): LoadManifestResult {
   const json = parsePluginJson(file.raw)
   if (!json.ok) return { ok: false, reason: json.reason, reports: [] }
 
-  const parsed = json.parsed
-  if (!isPlainObject(parsed)) {
-    return {
-      ok: false,
-      reason: 'plugin.json must contain a top-level object (§5.2)',
-      reports: [],
-    }
-  }
+  const topLevel = requireTopLevelObject(json.parsed)
+  if (!topLevel.ok) return { ok: false, reason: topLevel.reason, reports: [] }
 
-  const extensions = validateExtensions(parsed)
-  const reports = [...reportUnknownFields(parsed), ...extensions.reports]
+  const extensions = validateExtensions(topLevel.fields)
+  const reports = [
+    ...reportUnknownFields(topLevel.fields),
+    ...extensions.reports,
+  ]
 
-  const fields = validateManifestFields(parsed)
-  if (!fields.ok) return { ok: false, reason: fields.reason, reports }
+  const schema = readSchemaVersion(topLevel.fields)
+  if (!schema.ok) return { ok: false, reason: schema.reason, reports }
+
+  const name = readPluginName(topLevel.fields)
+  if (!name.ok) return { ok: false, reason: name.reason, reports }
+
+  const metadata = readMetadata(topLevel.fields)
+  if (!metadata.ok) return { ok: false, reason: metadata.reason, reports }
 
   return {
     ok: true,
-    manifest: { ...fields.manifest, extensions: extensions.extensions },
+    manifest: {
+      $schema: schema.schema,
+      name: name.name,
+      ...metadata.values,
+      ...(extensions.extensions && { extensions: extensions.extensions }),
+    },
     reports,
   }
 }

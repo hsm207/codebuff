@@ -1,0 +1,76 @@
+import { afterEach, describe, expect, test } from 'bun:test'
+
+import { loadManifest } from '../manifest'
+
+import {
+  CANONICAL_SCHEMA,
+  cleanUpManifestFixtures,
+  expectManifestOk,
+  makePluginRoot,
+} from './manifest-fixtures'
+
+afterEach(cleanUpManifestFixtures)
+
+describe('extensions field (spec §8.1)', () => {
+  /**
+   * Given a manifest without extensions, when loaded, the manifest
+   * carries no extensions value and no report is emitted (§8.1: the
+   * field is optional).
+   */
+  test('absent extensions loads with no value and no reports', () => {
+    const root = makePluginRoot(
+      JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin' }),
+    )
+
+    const result = loadManifest(root)
+
+    const { manifest, reports } = expectManifestOk(result)
+    expect(manifest.extensions).toBeUndefined()
+    expect(reports).toHaveLength(0)
+  })
+
+  /**
+   * Given a manifest whose extensions is an object of namespace entries
+   * (the §8.1 example), when loaded, the object reaches the manifest
+   * unchanged and no report is emitted about its contents (§8.1).
+   */
+  test('extensions object is carried onto the manifest unchanged, with no reports', () => {
+    const extensions = { 'com.example.client': { setting: true } }
+    const root = makePluginRoot(
+      JSON.stringify({
+        $schema: CANONICAL_SCHEMA,
+        name: 'minimal-plugin',
+        extensions,
+      }),
+    )
+
+    const result = loadManifest(root)
+
+    const { manifest, reports } = expectManifestOk(result)
+    expect(manifest.extensions).toEqual(extensions)
+    expect(reports).toHaveLength(0)
+  })
+
+  /**
+   * Given a manifest whose extensions is a string, when loaded, the
+   * plugin still loads (§8.1: MUST continue), a report names extensions,
+   * and the manifest carries no extensions value.
+   */
+  test('non-object extensions is reported and ignored', () => {
+    const root = makePluginRoot(
+      JSON.stringify({
+        $schema: CANONICAL_SCHEMA,
+        name: 'minimal-plugin',
+        extensions: 'nope',
+      }),
+    )
+
+    const result = loadManifest(root)
+
+    const { manifest, reports } = expectManifestOk(result)
+    expect(manifest.extensions).toBeUndefined()
+    expect(reports).toHaveLength(1)
+    expect(reports[0].section).toBe('§8.1')
+    expect(reports[0].message).toContain('extensions')
+  })
+})
