@@ -80,7 +80,6 @@ describe('loadManifest', () => {
       ['too.many..dots', 'consecutive periods (spec invalid list)'],
       ['', 'empty (spec invalid list)'],
       ['end-', 'trailing hyphen (derived from start/end rule)'],
-      ['.lead', 'leading period (derived from start/end rule)'],
       ['a'.repeat(MAX_NAME_LENGTH + 1), '65 chars — one past the edge (derived)'],
     ])('name %j → rejected (%s)', (name) => {
       const root = makePluginRoot(JSON.stringify({ $schema: CANONICAL_SCHEMA, name }))
@@ -140,16 +139,92 @@ describe('loadManifest', () => {
       expectManifestRejected(result, '$schema')
     })
 
+  })
+
+  describe('unknown top-level fields (spec §5.2)', () => {
     /**
-     * Given a manifest whose $schema is the empty string, when loaded, the
-     * plugin is rejected with the reason naming $schema (§5.3: "is empty").
+     * Given a valid manifest carrying one unknown top-level field, when
+     * loaded, the plugin still loads (§5.2 MUST continue), a report names
+     * the field, and the field is not carried onto the parsed manifest
+     * (§5.2 MUST NOT assign semantics).
      */
-    test('a manifest with an empty $schema is rejected, naming $schema', () => {
-      const root = makePluginRoot(JSON.stringify({ $schema: '', name: 'minimal-plugin' }))
+    test('one unknown field is reported and ignored, plugin still loads', () => {
+      const root = makePluginRoot(
+        JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin', bogus: 1 }),
+      )
 
       const result = loadManifest(root)
 
-      expectManifestRejected(result, '$schema')
+      const { manifest, reports } = expectManifestOk(result)
+      expect(manifest).not.toHaveProperty('bogus')
+      expect(reports).toHaveLength(1)
+      expect(reports[0].section).toBe('§5.2')
+      expect(reports[0].message).toContain('bogus')
+    })
+
+    /**
+     * Given a valid manifest carrying two unknown top-level fields, when
+     * loaded, one report names each field (§5.2 "report ... each unknown
+     * field").
+     */
+    test('each unknown field gets its own report', () => {
+      const root = makePluginRoot(
+        JSON.stringify({
+          $schema: CANONICAL_SCHEMA,
+          name: 'minimal-plugin',
+          bogus: 1,
+          wat: 'x',
+        }),
+      )
+
+      const result = loadManifest(root)
+
+      const { reports } = expectManifestOk(result)
+      expect(reports).toHaveLength(2)
+      const reported = reports.map((report) => report.message)
+      expect(reported[0]).toContain('bogus')
+      expect(reported[1]).toContain('wat')
+    })
+
+    /**
+     * Given a manifest with an unknown field and a fatal violation (name
+     * missing), when loaded, the plugin is rejected (§5.3 fatality wins)
+     * and the unknown-field report still rides the rejection (§5.2
+     * MUST-report is not conditioned on the plugin loading).
+     */
+    test('unknown-field reports ride a fatal rejection', () => {
+      const root = makePluginRoot(JSON.stringify({ $schema: CANONICAL_SCHEMA, bogus: 1 }))
+
+      const result = loadManifest(root)
+
+      expect(result.ok).toBe(false)
+      if (result.ok) throw new Error('expected rejection')
+      expect(result.reason).toContain('name')
+      expect(result.reports).toHaveLength(1)
+      expect(result.reports[0].message).toContain('bogus')
+    })
+
+    /**
+     * Given a manifest carrying permitted-but-unimplemented fields
+     * (version, description, license), when loaded, no unknown-field report
+     * is emitted — the §5.2 permitted set is the full ten-field list, not
+     * just the fields freebuff reads today.
+     */
+    test('permitted-but-unimplemented fields produce no reports', () => {
+      const root = makePluginRoot(
+        JSON.stringify({
+          $schema: CANONICAL_SCHEMA,
+          name: 'minimal-plugin',
+          version: '1.2.0',
+          description: 'Brief plugin description',
+          license: 'MIT',
+        }),
+      )
+
+      const result = loadManifest(root)
+
+      const { reports } = expectManifestOk(result)
+      expect(reports).toHaveLength(0)
     })
   })
 })

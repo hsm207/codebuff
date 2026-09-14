@@ -55,6 +55,38 @@ const PLUGIN_NAME_PATTERN = /^(?!.*--)(?!.*\.\.)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?
 export const PLUGIN_NAME_MAX_LENGTH = 64
 
 /**
+ * The closed §5.2 top-level set — the only fields a conforming manifest may
+ * carry. Anything outside it is reported and ignored, never given semantics.
+ */
+const MANIFEST_FIELDS = new Set([
+  '$schema',
+  'name',
+  'version',
+  'description',
+  'author',
+  'homepage',
+  'repository',
+  'license',
+  'keywords',
+  'extensions',
+])
+
+/**
+ * Unknown top-level fields are a non-fatal §5.2 violation: one report per
+ * field, and the plugin keeps loading when otherwise valid. The reports ride
+ * even a fatal rejection — reporting is not conditioned on the plugin
+ * loading.
+ */
+function reportUnknownFields(fields: Record<string, unknown>): PluginReport[] {
+  const unknown = Object.keys(fields).filter((field) => !MANIFEST_FIELDS.has(field))
+  return unknown.map((field) => ({
+    severity: 'warning',
+    section: '§5.2',
+    message: `unknown top-level field "${field}" ignored`,
+  }))
+}
+
+/**
  * Reads the manifest bytes at `<root>/plugin.json`, or the §5.1 refusal when
  * the package carries no manifest.
  */
@@ -129,8 +161,11 @@ export function loadManifest(root: string): LoadManifestResult {
     return { ok: false, reason: 'plugin.json must contain a top-level object (§5.2)', reports: [] }
   }
 
-  const fields = validateManifestFields(json.parsed as Record<string, unknown>)
-  if (!fields.ok) return { ok: false, reason: fields.reason, reports: [] }
+  const entries = json.parsed as Record<string, unknown>
+  const reports = reportUnknownFields(entries)
 
-  return { ok: true, manifest: fields.manifest, reports: [] }
+  const fields = validateManifestFields(entries)
+  if (!fields.ok) return { ok: false, reason: fields.reason, reports }
+
+  return { ok: true, manifest: fields.manifest, reports }
 }
