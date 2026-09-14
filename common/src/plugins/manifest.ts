@@ -90,7 +90,7 @@ function validateManifestFields(
     return { ok: false, reason: 'manifest.name must be a string (§5.3)' }
   }
 
-  if (!isPluginName(fields.name)) {
+  if (!isValidPluginName(fields.name)) {
     return {
       ok: false,
       reason:
@@ -107,7 +107,7 @@ function validateManifestFields(
  * charset, alphanumeric ends, and the no-consecutive-repeats rule; the length
  * cap is checked separately as the inclusive upper edge.
  */
-function isPluginName(name: string): boolean {
+function isValidPluginName(name: string): boolean {
   return PLUGIN_NAME_PATTERN.test(name) && name.length <= PLUGIN_NAME_MAX_LENGTH
 }
 
