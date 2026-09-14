@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
+import { resolvesWithinRoot } from './containment'
 import { validateExtensions } from './manifest/extensions'
 import { readMetadata } from './manifest/metadata'
 import { readPluginName } from './manifest/plugin-name'
@@ -85,17 +86,26 @@ export function loadManifest(root: string): LoadManifestResult {
 }
 
 /**
- * Reads the manifest text at `<root>/plugin.json`, or the §5.1 refusal when
- * the package carries no manifest.
+ * Reads the manifest text at `<root>/plugin.json`, or the reason it cannot be
+ * used: no manifest there (§5.1), or one resolving outside the plugin root,
+ * which §4.1.1's first failure boundary rejects outright. Containment is
+ * settled here, before the read, so the later components inherit it instead
+ * of each repeating the check.
  */
 function readPluginJson(
   root: string,
 ): { ok: true; raw: string } | { ok: false; reason: string } {
+  const file = path.join(root, 'plugin.json')
+
   try {
-    return {
-      ok: true,
-      raw: readFileSync(path.join(root, 'plugin.json'), 'utf8'),
+    if (!resolvesWithinRoot(root, file)) {
+      return {
+        ok: false,
+        reason: 'plugin.json resolves outside the plugin root (§4.1.1)',
+      }
     }
+
+    return { ok: true, raw: readFileSync(file, 'utf8') }
   } catch {
     return { ok: false, reason: 'no plugin.json at the plugin root (§5.1)' }
   }
