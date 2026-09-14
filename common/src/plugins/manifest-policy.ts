@@ -20,6 +20,17 @@ import type { PluginReport } from './report'
  */
 
 /**
+ * The §5.4 author object. Every field is optional, but the object is closed:
+ * a fourth field, or a value that is not a string, invalidates the manifest.
+ * That is the one §5.4 constraint stricter than the JSON-type rule below.
+ */
+export interface PluginAuthor {
+  name?: string
+  email?: string
+  url?: string
+}
+
+/**
  * The parsed manifest (spec §5). An invalid manifest means the plugin does
  * not exist — no components may be discovered or executed (§5.3). Metadata
  * values are carried as the author declared them: their JSON type is
@@ -36,9 +47,11 @@ export interface PluginManifest {
   extensions?: Record<string, unknown>
   version?: string
   description?: string
+  author?: PluginAuthor
   homepage?: string
   repository?: string
   license?: string
+  keywords?: string[]
 }
 
 /** The canonical manifest `$schema` id for Agent Plugins v1.0.0 (spec §5.2). */
@@ -86,6 +99,17 @@ const STRING_METADATA_FIELDS = [
 
 /** One field name from the §5.4 string metadata table. */
 type StringMetadataField = (typeof STRING_METADATA_FIELDS)[number]
+
+/** The §5.4 author object fields, in spec order. */
+const AUTHOR_FIELDS = ['name', 'email', 'url'] as const
+
+/** One field name from the §5.4 author object. */
+type AuthorField = (typeof AUTHOR_FIELDS)[number]
+
+/** True when `field` is one of the three names §5.4 permits in author. */
+function isAuthorField(field: string): field is AuthorField {
+  return AUTHOR_FIELDS.some((known) => known === field)
+}
 
 /**
  * True for a JSON object: not a primitive, not null, not an array. The null
@@ -150,6 +174,59 @@ function readStringMetadata(
 }
 
 /**
+ * Reads the §5.4 author object, the one metadata field §5.4 constrains
+ * beyond JSON type: only name, email, and url, each a string.
+ */
+function readAuthor(
+  value: unknown,
+): { ok: true; author?: PluginAuthor } | { ok: false; reason: string } {
+  if (value === undefined) return { ok: true }
+  if (!isPlainObject(value)) {
+    return { ok: false, reason: 'manifest.author must be an object (§5.4)' }
+  }
+
+  const author: PluginAuthor = {}
+  for (const [field, fieldValue] of Object.entries(value)) {
+    if (!isAuthorField(field)) {
+      return {
+        ok: false,
+        reason: `manifest.author has an unknown field "${field}" (§5.4)`,
+      }
+    }
+    if (typeof fieldValue !== 'string') {
+      return {
+        ok: false,
+        reason: `manifest.author.${field} must be a string (§5.4)`,
+      }
+    }
+    author[field] = fieldValue
+  }
+  return { ok: true, author }
+}
+
+/**
+ * Reads the §5.4 keywords list. §5.4 declares it `string[]` and §5.2 makes a
+ * permitted field that does not match its declared type fatal, so a
+ * non-string element rejects the plugin — the permissive §5.4 sentence
+ * forbids judging content, never types.
+ */
+function readKeywords(
+  value: unknown,
+): { ok: true; keywords?: string[] } | { ok: false; reason: string } {
+  if (value === undefined) return { ok: true }
+  if (
+    !Array.isArray(value) ||
+    !value.every((entry) => typeof entry === 'string')
+  ) {
+    return {
+      ok: false,
+      reason: 'manifest.keywords must be an array of strings (§5.4)',
+    }
+  }
+  return { ok: true, keywords: value }
+}
+
+/**
  * Applies the §5.2–§5.5 field rules to the parsed object. Returns the
  * manifest fields freebuff carries, or the reason the plugin does not exist.
  */
@@ -183,12 +260,20 @@ export function validateManifestFields(
   const metadata = readStringMetadata(fields)
   if (!metadata.ok) return { ok: false, reason: metadata.reason }
 
+  const author = readAuthor(fields.author)
+  if (!author.ok) return { ok: false, reason: author.reason }
+
+  const keywords = readKeywords(fields.keywords)
+  if (!keywords.ok) return { ok: false, reason: keywords.reason }
+
   return {
     ok: true,
     manifest: {
       $schema: fields.$schema,
       name: fields.name,
       ...metadata.values,
+      ...(author.author && { author: author.author }),
+      ...(keywords.keywords && { keywords: keywords.keywords }),
     },
   }
 }
