@@ -7,6 +7,7 @@ Model (locked 2026-09-14 with the human; DDD crunch grounded in Evans Ch 1/5/6):
 - `loadManifest` (Factory, atomic), `loadPlugin` (Service), `Report` (value object — "MUST/SHOULD report" is mandatory domain behavior).
 - `extensions` carried shape-only, never interpreted (§8.1); NOT a component — §7 defines exactly two component types.
 - Modules: `common/src/plugins/{manifest,skills,mcp-config,expand,loader}.ts`.
+Test prose (2026-09-14, human ruling): every test reads as Given/When/Then — the docstring carries the GWT sentence, the title is trigger→outcome, the body is straight-line AAA; table-driven test.each only for large spec-enumerated sets (T2), never for dense object tables whose titles interpolate garbage.
 DSL rationale (2026-09-14): the rejection contract is not the boolean complement of the success contract — "not ok-true" includes "the loader crashed", which the Factory forbids; hence paired helpers expectManifestOk / expectManifestRejected (the negative one also asserts the reason blames the field under test).
 Spec source: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md (v1.0.0 published; 1.1.0 draft). Local cache verified byte-identical 2026-09-14.
 
