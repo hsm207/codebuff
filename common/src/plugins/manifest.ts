@@ -85,7 +85,7 @@ export function loadManifest(root: string): LoadManifestResult {
 }
 
 /**
- * Reads the manifest bytes at `<root>/plugin.json`, or the §5.1 refusal when
+ * Reads the manifest text at `<root>/plugin.json`, or the §5.1 refusal when
  * the package carries no manifest.
  */
 function readPluginJson(
@@ -101,7 +101,7 @@ function readPluginJson(
   }
 }
 
-/** Parses the manifest bytes, or the §5.2 refusal when they are not JSON. */
+/** Parses the manifest text, or the §5.2 refusal when it is not JSON. */
 function parsePluginJson(
   raw: string,
 ): { ok: true; parsed: unknown } | { ok: false; reason: string } {
