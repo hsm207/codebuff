@@ -8,6 +8,7 @@ import {
   expectManifestOk,
   expectManifestRejected,
   makePluginRoot,
+  makeRootWithoutManifest,
   NON_JSON_TEXT,
 } from './manifest-fixtures'
 
@@ -37,6 +38,23 @@ describe('loadManifest', () => {
     const result = loadManifest(root)
 
     expectManifestRejected(result, 'not valid JSON')
+  })
+
+  /**
+   * Given a plugin root with no plugin.json, when loaded, the plugin is
+   * rejected with a reason naming the missing manifest (§5.1: clients MUST
+   * check for a manifest at plugin.json) and no report, since a report
+   * describes a manifest that was read. A path that is present but resolves
+   * nowhere — a dangling reparse point — yields no readable manifest either
+   * and reaches the same refusal.
+   */
+  test('a root without plugin.json is rejected, naming the missing manifest', () => {
+    const root = makeRootWithoutManifest()
+
+    const result = loadManifest(root)
+
+    const rejection = expectManifestRejected(result, 'no plugin.json')
+    expect(rejection.reports).toHaveLength(0)
   })
 
   describe('required fields (spec §5.3)', () => {

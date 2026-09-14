@@ -125,6 +125,11 @@ export function makePluginRoot(manifestJson: string): string {
   return root
 }
 
+/** A plugin root that carries no plugin.json at all (§5.1). */
+export function makeRootWithoutManifest(): string {
+  return makeTempDir('freebuff-plugin-')
+}
+
 /**
  * A plugin root whose manifest carries the required fields plus the given
  * extras, so a test body states only the field it is about.
