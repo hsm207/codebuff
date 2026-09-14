@@ -6,6 +6,16 @@ import type { PluginReport } from './report'
  * filesystem access. `loadManifest` in manifest.ts reads the file and applies
  * these rules.
  *
+ * The rules are written by hand instead of declared as a schema (zod, or the
+ * spec's own machine-readable JSON Schema). §5.2 makes exactly two violations
+ * non-fatal: an unknown top-level field is reported while loading continues,
+ * and a non-object `extensions` is reported and ignored — while every other
+ * violation rejects the plugin. No schema declaration captures that split. The
+ * spec also ranks its text above the schema ("The specification text is
+ * authoritative if it conflicts with the schema"), so a declaration would be a
+ * second copy of these rules, free to drift from the one we answer to; writing
+ * and testing them directly is less work than bending zod to the text.
+ *
  * Spec: github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md
  */
 
