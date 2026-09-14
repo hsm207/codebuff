@@ -9,6 +9,9 @@ import { loadManifest, type LoadManifestResult } from '../manifest'
 /** The $schema id every valid 1.0.0 manifest must carry (spec §5.2). */
 const CANONICAL_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
 
+/** Longest allowed plugin name — 64 is the inclusive upper edge (spec §5.5). */
+const MAX_NAME_LENGTH = 64
+
 /** A plugin root whose plugin.json carries exactly the given bytes. */
 function makePluginRoot(manifestJson: string): string {
   const root = mkdtempSync(path.join(tmpdir(), 'freebuff-plugin-'))
@@ -27,6 +30,17 @@ function expectManifestOk(result: LoadManifestResult) {
   return result
 }
 
+/**
+ * Asserts the plugin does not exist (the fatal branch) and that the loader's
+ * reason blames the field named by `blame`, so a rejection for the wrong
+ * cause still fails the test.
+ */
+function expectManifestRejected(result: LoadManifestResult, blame: string): void {
+  expect(result.ok).toBe(false)
+  if (result.ok) throw new Error(`expected rejection blaming ${blame}, got ok`)
+  expect(result.reason).toContain(blame)
+}
+
 describe('loadManifest', () => {
   test('minimal valid manifest (spec 1.0.0 §5.2 example) → ok with no reports', () => {
     const root = makePluginRoot(JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin' }))
@@ -36,5 +50,39 @@ describe('loadManifest', () => {
     const { manifest, reports } = expectManifestOk(result)
     expect(manifest.name).toBe('minimal-plugin')
     expect(reports).toHaveLength(0)
+  })
+
+  describe('name constraints (spec §5.5)', () => {
+    test.each([
+      ['my-plugin', 'spec valid list'],
+      ['acme.tools', 'spec valid list'],
+      ['lint3r', 'spec valid list'],
+      ['a', 'spec valid list'],
+      ['a'.repeat(MAX_NAME_LENGTH), '64 chars — inclusive edge (derived)'],
+    ])('name %j → ok (%s)', (name) => {
+      const root = makePluginRoot(JSON.stringify({ $schema: CANONICAL_SCHEMA, name }))
+
+      const result = loadManifest(root)
+
+      const { manifest } = expectManifestOk(result)
+      expect(manifest.name).toBe(name)
+    })
+
+    test.each([
+      ['My-Plugin', 'uppercase (spec invalid list)'],
+      ['-start', 'leading hyphen (spec invalid list)'],
+      ['has--double', 'consecutive hyphens (spec invalid list)'],
+      ['too.many..dots', 'consecutive periods (spec invalid list)'],
+      ['', 'empty (spec invalid list)'],
+      ['end-', 'trailing hyphen (derived from start/end rule)'],
+      ['.lead', 'leading period (derived from start/end rule)'],
+      ['a'.repeat(MAX_NAME_LENGTH + 1), '65 chars — one past the edge (derived)'],
+    ])('name %j → rejected (%s)', (name) => {
+      const root = makePluginRoot(JSON.stringify({ $schema: CANONICAL_SCHEMA, name }))
+
+      const result = loadManifest(root)
+
+      expectManifestRejected(result, 'name')
+    })
   })
 })
