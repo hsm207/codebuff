@@ -23,6 +23,11 @@ function makePluginRoot(manifestJson: string): string {
  * Asserts the load succeeded, failing with the loader's reason otherwise,
  * and returns the manifest so tests assert on plugin values, never on the
  * result's shape.
+ *
+ * Rejection rows use expectManifestRejected rather than negating this one:
+ * a rejection is not the boolean complement of success — "not ok" also
+ * covers a crash, which the Factory forbids — and the rejection helper
+ * additionally asserts the reason blames the field under test.
  */
 function expectManifestOk(result: LoadManifestResult) {
   expect(result.ok).toBe(true)
