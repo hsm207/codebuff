@@ -13,6 +13,7 @@ import {
   loadPlugin,
   pluginDataDirFor,
 } from '@codebuff/common/plugins/load-plugin'
+import { getPluginsRoot } from '../utils/plugins-root'
 import { parsePluginSourceUrl } from '@codebuff/common/plugins/install-url'
 
 import type { PluginSource } from '@codebuff/common/plugins/install-url'
@@ -68,8 +69,7 @@ export async function handlePluginInstall(
   options: PluginInstallOptions = {},
 ): Promise<PluginInstallResult> {
   const fetchImpl = options.fetchImpl ?? fetch
-  const pluginsRoot =
-    options.pluginsRoot ?? path.join(os.homedir(), '.agents', 'plugins')
+  const pluginsRoot = options.pluginsRoot ?? getPluginsRoot()
   const existingSkillNames =
     options.existingSkillNames ?? (() => new Set<string>())
   const existingMcpServerNames =
