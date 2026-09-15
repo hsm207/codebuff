@@ -3,10 +3,9 @@ import { afterEach, describe, expect, test } from 'bun:test'
 import { loadManifest } from '../load-plugin-manifest'
 
 import {
-  CANONICAL_SCHEMA,
   expectManifestOk,
   expectReportAbout,
-  makePluginRoot,
+  makeManifestRoot,
 } from './fixtures/manifest'
 import { cleanUpPluginFixtures } from './fixtures/temp-roots'
 
@@ -19,9 +18,7 @@ describe('extensions field (spec §8.1)', () => {
    * field is optional).
    */
   test('absent extensions loads with no value and no reports', () => {
-    const root = makePluginRoot(
-      JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin' }),
-    )
+    const root = makeManifestRoot()
 
     const result = loadManifest(root)
 
@@ -37,13 +34,7 @@ describe('extensions field (spec §8.1)', () => {
    */
   test('extensions object is carried onto the manifest unchanged, with no reports', () => {
     const extensions = { 'com.example.client': { setting: true } }
-    const root = makePluginRoot(
-      JSON.stringify({
-        $schema: CANONICAL_SCHEMA,
-        name: 'minimal-plugin',
-        extensions,
-      }),
-    )
+    const root = makeManifestRoot({ extensions })
 
     const result = loadManifest(root)
 
@@ -58,13 +49,7 @@ describe('extensions field (spec §8.1)', () => {
    * and the manifest carries no extensions value.
    */
   test('non-object extensions is reported and ignored', () => {
-    const root = makePluginRoot(
-      JSON.stringify({
-        $schema: CANONICAL_SCHEMA,
-        name: 'minimal-plugin',
-        extensions: 'nope',
-      }),
-    )
+    const root = makeManifestRoot({ extensions: 'nope' })
 
     const result = loadManifest(root)
 

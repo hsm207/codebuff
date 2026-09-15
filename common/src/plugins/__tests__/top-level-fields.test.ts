@@ -7,6 +7,7 @@ import {
   expectManifestOk,
   expectManifestRejected,
   expectReportAbout,
+  makeManifestRoot,
   makePluginRoot,
   TOP_LEVEL_ARRAY_JSON,
   TOP_LEVEL_NULL_JSON,
@@ -62,13 +63,7 @@ describe('top-level fields (spec §5.2)', () => {
    * (§5.2 MUST NOT assign semantics).
    */
   test('one unknown field is reported and ignored, plugin still loads', () => {
-    const root = makePluginRoot(
-      JSON.stringify({
-        $schema: CANONICAL_SCHEMA,
-        name: 'minimal-plugin',
-        bogus: 1,
-      }),
-    )
+    const root = makeManifestRoot({ bogus: 1 })
 
     const result = loadManifest(root)
 
@@ -85,14 +80,7 @@ describe('top-level fields (spec §5.2)', () => {
    * claims presence per field rather than report positions.
    */
   test('each unknown field gets its own report', () => {
-    const root = makePluginRoot(
-      JSON.stringify({
-        $schema: CANONICAL_SCHEMA,
-        name: 'minimal-plugin',
-        bogus: 1,
-        wat: 'x',
-      }),
-    )
+    const root = makeManifestRoot({ bogus: 1, wat: 'x' })
 
     const result = loadManifest(root)
 
