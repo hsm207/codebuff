@@ -9,7 +9,10 @@ import { loadPlugin } from '@codebuff/common/plugins/load-plugin'
 
 import { getPluginsRoot } from './plugins-root'
 
-import type { LoadPluginResult } from '@codebuff/common/plugins/load-plugin'
+import type {
+  InstalledPlugin,
+  LoadPluginResult,
+} from '@codebuff/common/plugins/load-plugin'
 import type { MCPConfig } from '@codebuff/common/types/mcp'
 import type { SkillsMap } from '@codebuff/common/types/skill'
 
@@ -52,6 +55,22 @@ export function loadInstalledPlugins(
 }
 
 /**
+ * The loadable plugins under the root, in name order, with the refused
+ * directories dropped — the unwrapping the two walks below would
+ * otherwise each repeat. Without a reader the composition reads no
+ * skills, which is what the MCP walk wants and the reason `pluginSkills`
+ * must resolve its reader before calling here.
+ */
+function loadedPlugins(
+  pluginsRoot: string,
+  readSkillsDir?: (skillsDir: string) => SkillsMap,
+): InstalledPlugin[] {
+  return loadInstalledPlugins(pluginsRoot, readSkillsDir).flatMap((result) =>
+    result.ok ? [result.plugin] : [],
+  )
+}
+
+/**
  * Skills from every installed plugin, merged into one map — the value the
  * skill registry assigns over its cache after the user's and project's
  * own skills load. The registry's join is plugin-last, so a plugin skill
@@ -61,18 +80,12 @@ export function loadInstalledPlugins(
  * skills, too.
  */
 export function pluginSkills(options: PluginSkillsOptions = {}): SkillsMap {
-  const readSkillsDir = options.readSkillsDir ?? sdkReadSkillsDir
-  const merged: SkillsMap = {}
-
-  for (const result of loadInstalledPlugins(
+  const plugins = loadedPlugins(
     options.pluginsRoot ?? getPluginsRoot(),
-    readSkillsDir,
-  )) {
-    if (result.ok) {
-      Object.assign(merged, result.plugin.skills)
-    }
-  }
-  return merged
+    options.readSkillsDir ?? sdkReadSkillsDir,
+  )
+
+  return Object.assign({}, ...plugins.map((plugin) => plugin.skills))
 }
 
 /**
@@ -95,14 +108,7 @@ const sdkReadSkillsDir = (skillsPath: string): SkillsMap =>
 export function pluginMcpServers(
   options: { pluginsRoot?: string } = {},
 ): Record<string, MCPConfig> {
-  const merged: Record<string, MCPConfig> = {}
+  const plugins = loadedPlugins(options.pluginsRoot ?? getPluginsRoot())
 
-  for (const result of loadInstalledPlugins(
-    options.pluginsRoot ?? getPluginsRoot(),
-  )) {
-    if (result.ok) {
-      Object.assign(merged, result.plugin.mcpServers)
-    }
-  }
-  return merged
+  return Object.assign({}, ...plugins.map((plugin) => plugin.mcpServers))
 }
