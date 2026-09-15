@@ -2,7 +2,7 @@ import type { PluginReport } from './report'
 
 /**
  * Where a plugin install fetches from: the GitHub repo coordinates and
- * the plugin's subpath inside it, derived from the install URL (T31).
+ * the plugin's subpath inside it, derived from the install URL.
  * `ref` defaults to `HEAD`, which codeload resolves to the default
  * branch; no commit sha is available without the REST API (rate limits),
  * so sha pinning stays future work.
@@ -24,7 +24,7 @@ export type ParsePluginSourceResult =
  * network, no git. Accepts the https GitHub forms: repo root, trailing
  * `.git`, `tree/<ref>` with or without a subpath, and a plain subpath.
  * Anything that is not an https github.com repo URL is rejected with the
- * reason (the install aborts before fetching, T33's first failure mode).
+ * reason, so the install aborts before fetching.
  */
 export function parsePluginSourceUrl(url: string): ParsePluginSourceResult {
   // The ssh scp-like form (git@host:owner/repo) is not a URL at all —

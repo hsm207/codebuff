@@ -64,7 +64,7 @@ function fetchReturning(blob: Blob): PluginInstallOptions['fetchImpl'] {
   return () => Promise.resolve(new Response(blob, { status: 200 }))
 }
 
-describe('plugin install (T32 wiring / T33 aborts)', () => {
+describe('plugin install', () => {
   /**
    * Given a fetched tarball carrying a valid plugin, when installed, the
    * plugin root lands under the plugins root named after the manifest,
@@ -162,8 +162,8 @@ describe('plugin install (T32 wiring / T33 aborts)', () => {
 
   /**
    * Given a plugin whose name is already installed, when installed, the
-   * conflict aborts before anything moves — install never shadows (human
-   * ruling) — and the existing install is untouched.
+   * conflict aborts before anything moves — install never shadows an
+   * existing install — and the existing install is untouched.
    */
   test('an already-installed name aborts clean', async () => {
     const pluginsRoot = makeTempDir()

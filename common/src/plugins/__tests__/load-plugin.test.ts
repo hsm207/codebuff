@@ -13,14 +13,14 @@ import { cleanUpPluginFixtures } from './fixtures/temp-roots'
 // The real reader, imported by file so the barrel (and its tree-sitter
 // wasm) stays out — the same care `parse-skill.ts` documents. Test-only:
 // the production graph gains no common → sdk edge, because `loadPlugin`
-// takes the reader as a parameter and Phase 5's wiring passes the SDK's.
+// takes the reader as a parameter; the session wiring passes the SDK's.
 import { loadSkillsSync } from '../../../../sdk/src/skills/load-skills'
 
 afterEach(cleanUpPluginFixtures)
 
 const readSkills = (dir: string) => loadSkillsSync({ skillsPath: dir })
 
-describe('loadPlugin composition (Phase 5 service seam)', () => {
+describe('loadPlugin composition', () => {
   /**
    * Given a root carrying all three components, when loaded, the entity
    * carries the manifest, the loaded skills and servers, and the

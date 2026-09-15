@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 
 import { parsePluginSourceUrl } from '../install-url'
 
-describe('plugin install URL parse (T31)', () => {
+describe('plugin install URL parse', () => {
   /**
    * Given a GitHub URL in one of the accepted forms, when parsed, it
    * yields the repo coordinates the tarball fetch needs: owner, repo,

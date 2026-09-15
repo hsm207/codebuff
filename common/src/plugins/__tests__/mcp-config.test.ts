@@ -29,8 +29,8 @@ describe('mcp component (spec §7.2)', () => {
    * Given a plugin root with no mcp.json, when loaded, MCP contributes no
    * servers and no error (§6.2: an absent fixed location is not an error),
    * and the same holds when mcp.json exists but is a directory rather than
-   * a regular file — wrong kind, not absence, but the component result the
-   * session surface needs is identical.
+   * a regular file — wrong kind, not absence, but the component result
+   * the session needs is identical.
    */
   test('missing mcp.json is not an error', () => {
     const root = makeManifestRoot()
@@ -59,10 +59,9 @@ describe('mcp component (spec §7.2)', () => {
 
   /**
    * Given an mcp.json that is a reparse point resolving outside the plugin
-   * root, when loaded, MCP is refused under §4.1.1 — this component has its
-   * own read path, so its containment wiring is proved here rather than
-   * inherited from the manifest's (the tracker's "no separate row" note
-   * assumed a shared walk; the audit found otherwise).
+   * root, when loaded, MCP is refused under §4.1.1 — this component has
+   * its own read path, so its containment wiring is proved here rather
+   * than inherited from the manifest's.
    */
   test('an mcp.json resolving outside the root is refused', () => {
     const root = makeEscapingMCPRoot()

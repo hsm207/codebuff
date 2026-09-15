@@ -54,7 +54,7 @@ export function pluginDataDirFor(
  * collected rather than fatal (§7.2.2). Pure with respect to the root:
  * nothing is created or written; provisioning the data directory is the
  * installer's one mkdir. The skill reader is injected because `common`
- * cannot import the SDK — the session surface passes its own
+ * cannot import the SDK — the CLI passes its own
  * `loadSkills({ skillsPath })` here, the same reader it uses for the
  * user's roots.
  */

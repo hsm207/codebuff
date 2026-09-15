@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test } from 'bun:test'
 // The real reader, imported by file so the barrel (and its tree-sitter wasm)
 // stays out — the same care `parse-skill.ts` documents. Test-only: the
 // production graph gains no common → sdk edge, because the walk takes the
-// reader as a parameter and Phase 5's wiring passes the SDK's.
+// reader as a parameter; the session wiring passes the SDK's.
 import { loadSkillsSync } from '../../../../sdk/src/skills/load-skills'
 
 import { loadPluginSkills } from '../skills'
