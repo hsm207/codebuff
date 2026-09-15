@@ -14,6 +14,10 @@ import { cleanUpPluginFixtures } from './fixtures/temp-roots'
 afterEach(cleanUpPluginFixtures)
 
 describe('plugin name (spec §5.5)', () => {
+  /**
+   * Given each name the §5.5 constraints accept, when loaded, the plugin
+   * loads carrying that name — including the 64-character inclusive edge.
+   */
   test.each([
     ['my-plugin', 'spec valid list'],
     ['acme.tools', 'spec valid list'],
@@ -31,6 +35,11 @@ describe('plugin name (spec §5.5)', () => {
     expect(manifest.name).toBe(name)
   })
 
+  /**
+   * Given each name that breaks a §5.5 constraint — the spec's own invalid
+   * list plus the two edges derived from it — when loaded, the plugin is
+   * rejected with a reason naming `name`.
+   */
   test.each([
     ['My-Plugin', 'uppercase (spec invalid list)'],
     ['-start', 'leading hyphen (spec invalid list)'],
