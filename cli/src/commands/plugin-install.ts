@@ -15,10 +15,9 @@ import {
 } from '@codebuff/common/plugins/load-plugin'
 import { getPluginsRoot } from '../utils/plugins-root'
 import { parsePluginSourceUrl } from '@codebuff/common/plugins/install-url'
-
-import type { PluginSource } from '@codebuff/common/plugins/install-url'
 import { loadSkillsSync } from '@codebuff/sdk'
 
+import type { PluginSource } from '@codebuff/common/plugins/install-url'
 import type { PluginReport } from '@codebuff/common/plugins/report'
 
 /**
