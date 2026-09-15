@@ -54,9 +54,11 @@ export function loadInstalledPlugins(
 /**
  * Skills from every installed plugin, merged into one map — the value the
  * skill registry assigns over its cache after the user's and project's
- * own skills load. Plugins register last and can never shadow either
- * root: install already aborted on any name conflict. An unreadable
- * plugins root contributes an empty map; a plugin with no skills, too.
+ * own skills load. The registry's join is plugin-last, so a plugin skill
+ * wins over a same-name skill added to the user's roots after install
+ * (install's conflict check only saw names at install time). An
+ * unreadable plugins root contributes an empty map; a plugin with no
+ * skills, too.
  */
 export function pluginSkills(options: PluginSkillsOptions = {}): SkillsMap {
   const readSkillsDir = options.readSkillsDir ?? sdkReadSkillsDir
@@ -82,12 +84,13 @@ const sdkReadSkillsDir = (skillsPath: string): SkillsMap =>
 /**
  * MCP servers from every installed plugin, merged into one map — the
  * value the agent registry assigns over its server cache after the
- * user's own mcp.json loads. An agent plugin's MCP servers cannot shadow
- * one of the user's: install aborted on any name conflict. The map holds
- * the same freebuff shapes the user's own mcp.json parses into, so the
- * session cannot tell an agent plugin's MCP server from one the user
- * wrote themselves. An unreadable
- * plugins root contributes an empty map; a plugin with no servers, too.
+ * user's own mcp.json loads. The registry's join is plugin-last, so a
+ * plugin server wins over a same-name server added to the user's own
+ * mcp.json after install (install's conflict check only saw names at
+ * install time). The map holds the same freebuff shapes the user's own
+ * mcp.json parses into, so the session cannot tell an agent plugin's
+ * MCP server from one the user wrote themselves. An unreadable plugins
+ * root contributes an empty map; a plugin with no servers, too.
  */
 export function pluginMcpServers(
   options: { pluginsRoot?: string } = {},
