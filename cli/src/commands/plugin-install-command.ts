@@ -3,10 +3,15 @@ import { green, red, yellow } from 'picocolors'
 import {
   handlePluginInstall,
   type PluginInstallOptions,
+  type PluginInstallResult,
 } from './plugin-install'
 import { loadMCPConfigSync, loadSkillsSync } from '@codebuff/sdk'
 
 const USAGE = 'Usage: freebuff plugin install <url>'
+
+/** Shown under the usage line when the URL argument is missing or doubled. */
+const URL_EXAMPLE =
+  'Expected the plugin URL, e.g. https://github.com/owner/repo/path/to/plugin.'
 
 /**
  * The names already present in the user's own skill and MCP roots — the
@@ -40,17 +45,57 @@ function userMcpServerNames(): Set<string> {
 }
 
 /**
+/**
+ * Prints the usage line — with `detail` under it when the caller has one —
+ * and exits nonzero: the answer to every mistake on this command line.
+ */
+function failWithUsage(detail?: string): void {
+  console.log(yellow(detail ? `${USAGE}\n\n${detail}` : USAGE))
+  process.exitCode = 1
+}
+
+/**
  * The `freebuff plugin` command entry: everything after `plugin` on the
  * command line. The only subcommand is `install`; anything else prints
  * the usage line and exits nonzero.
  */
 export async function runPluginCommand(rawArgs: string[]): Promise<void> {
   if (rawArgs[0] !== 'install') {
-    console.log(yellow(USAGE))
-    process.exitCode = 1
+    failWithUsage()
     return
   }
   await runPluginInstallCommand(rawArgs.slice(1))
+}
+
+/**
+ * Prints the success render: the check line naming the plugin, its version,
+ * and where it came from, then what was registered, the data dir, and any
+ * reports the load gathered.
+ */
+function renderInstalled(installed: PluginInstallResult, url: string): void {
+  console.log(
+    green(
+      `✔ ${installed.pluginName} ${installed.version} ← ${url.replace(/^https:\/\//, '')}`,
+    ),
+  )
+  console.log(green(`  skills ${installed.skillsCount} registered`))
+
+  const servers = installed.mcpServers ?? []
+  if (servers.length > 0) {
+    console.log(
+      green(
+        `  mcp ${servers.length} server${servers.length === 1 ? '' : 's'}: ${servers.join(', ')}`,
+      ),
+    )
+  }
+
+  if (installed.dataDir) {
+    console.log(green(`  data ${installed.dataDir} (created)`))
+  }
+
+  for (const report of installed.reports ?? []) {
+    console.log(yellow(`  ⚠ [${report.section}] ${report.message}`))
+  }
 }
 
 /**
@@ -66,16 +111,13 @@ export async function runPluginInstallCommand(
   options: PluginInstallOptions = {},
 ): Promise<void> {
   if (args.length !== 1) {
-    console.log(
-      yellow(
-        `${USAGE}\n\nExpected the plugin URL, e.g. https://github.com/owner/repo/path/to/plugin.`,
-      ),
-    )
-    process.exitCode = 1
+    failWithUsage(URL_EXAMPLE)
     return
   }
 
-  const result = await handlePluginInstall(args[0]!, {
+  const url = args[0]!
+
+  const result = await handlePluginInstall(url, {
     ...options,
     existingSkillNames: options.existingSkillNames ?? userSkillNames,
     existingMcpServerNames:
@@ -83,31 +125,10 @@ export async function runPluginInstallCommand(
   })
 
   if (!result.success) {
-    console.log(red(`✗ ${result.error}`))
+    console.log(red(`✗ ${result.error ?? 'the install failed'}`))
     process.exitCode = 1
     return
   }
 
-  console.log(
-    green(
-      `✔ ${result.pluginName} ${result.version} ← ${args[0]!.replace(/^https:\/\//, '')}`,
-    ),
-  )
-  console.log(green(`  skills ${result.skillsCount} registered`))
-  const servers = result.mcpServers ?? []
-  if (servers.length > 0) {
-    console.log(
-      green(
-        `  mcp ${servers.length} server${servers.length === 1 ? '' : 's'}: ${servers.join(', ')}`,
-      ),
-    )
-  }
-  if (result.dataDir) {
-    console.log(green(`  data ${result.dataDir} (created)`))
-  }
-  if ((result.reports?.length ?? 0) > 0) {
-    for (const report of result.reports ?? []) {
-      console.log(yellow(`  ⚠ [${report.section}] ${report.message}`))
-    }
-  }
+  renderInstalled(result, url)
 }
