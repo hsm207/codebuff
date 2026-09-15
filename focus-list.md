@@ -101,6 +101,14 @@ Honest limit to state in the test rather than paper over: `developer-knowledge` 
 
 - Test 29: plugin skills join the session registry as a third root — the plugin root's `skills/` is the path handed to the reader, the 5 google-cloud-developer skills are present in `getLoadedSkills()`, and the user's and project's own roots are untouched (subsumes Test 12: the seam and the wiring are one assertion)
 - Test 30: plugin MCP servers join the session server map — `developer-knowledge` present as freebuff `http` in `getLoadedMCPServers()`, adapter output accepted by `mcpConfigSchema`
+
+### Test 30 — done (2026-09-15, uncommitted)
+
+- Landed: `pluginMcpServers()` beside `pluginSkills()` in `plugin-discovery.ts` (same scan; no skill reader needed — MCP config is loaded by common, so this never touches the SDK; discovery's reader param became optional with a no-op default). Upstream `local-agent-registry.ts` delta: one import + one `Object.assign` join after the mcp.json try/catch — a broken user mcp.json must not hide plugin servers (comment carries that why). Conflict hygiene applied from the start this time; internal-reference sweep clean.
+- 3 rows: spec `streamable-http` arrives as valid freebuff `http` (parsed through `mcpConfigSchema`, defaults `params`/`headers` present per the adapter's documented contract), servers from two plugins merge into one map, missing root contributes nothing. Sabotage: swapping the adapter's transport mapping (`http`→`sse`) turns exactly the shape row red.
+- Test bugs caught on the way (both mine): expected the bare shape and missed the adapter's emitted defaults; used `type: 'http'` in a fixture, which the spec doesn't allow — the adapter refused it, accidentally proving the refusal row.
+- Audit (17 stages, fresh this session): cc/ca/tr pass. Pruning deliberation recorded: the absence row duplicates T29's shape-for-shape, but each pins a separately exported function's contract (absence → empty map, not throw) through the shared discovery; kept as cheap symmetric pinning.
+- Live end-to-end (cache → base-agent merge → real connection attempt) is T34/T35.
 - Test 31: install URL forms → (repo, subpath, ref): repo root, trailing `.git`, `/tree/<ref>/<path>`, plain subpath, default `HEAD`; a non-GitHub host or an ssh remote is rejected with a clear report (pure parse, no network, no `git`)
 - Test 32: `freebuff plugin install <url>` on the google-cloud-developer URL — tarball fetch of the subdirectory (no git binary), lands at `<pluginsRoot>/google-cloud-developer` in a clean roots fixture, exit 0, renders the result above with zero reports (tmux e2e per AGENTS.md)
 - Test 33: install failures all abort cleanly — unreachable URL, 404, no plugin.json at the subpath, invalid manifest, plugin name already installed, and a plugin skill or server name colliding with the user's roots → clear report and **nothing** written (no plugin dir, no skills registered, no servers, no data dir, temp removed)
