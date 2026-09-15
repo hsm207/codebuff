@@ -17,6 +17,7 @@ import { getPluginsRoot } from '../utils/plugins-root'
 import { parsePluginSourceUrl } from '@codebuff/common/plugins/install-url'
 import { loadSkillsSync } from '@codebuff/sdk'
 
+import type { InstalledPlugin } from '@codebuff/common/plugins/load-plugin'
 import type { PluginSource } from '@codebuff/common/plugins/install-url'
 import type { PluginReport } from '@codebuff/common/plugins/report'
 
@@ -121,12 +122,7 @@ export async function handlePluginInstall(
       )
     }
 
-    cpSync(pluginRoot, destination, { recursive: true })
-    rmSync(tempDir, { recursive: true, force: true })
-    tempDir = undefined
-
-    const dataDir = pluginDataDirFor(destination, load.plugin.manifest)
-    mkdirSync(dataDir, { recursive: true })
+    const dataDir = installPluginAt(load.plugin, pluginRoot, destination)
 
     return {
       success: true,
@@ -234,4 +230,22 @@ function checkConflicts(
   }
 
   return null
+}
+
+/**
+ * Moves the loaded plugin into the plugins root under the manifest's name
+ * and provisions the client-managed data dir, returning its path — the one
+ * mkdir the load leaves to the installer (§9.1).
+ */
+function installPluginAt(
+  plugin: InstalledPlugin,
+  pluginRoot: string,
+  destination: string,
+): string {
+  cpSync(pluginRoot, destination, { recursive: true })
+
+  const dataDir = pluginDataDirFor(destination, plugin.manifest)
+  mkdirSync(dataDir, { recursive: true })
+
+  return dataDir
 }
