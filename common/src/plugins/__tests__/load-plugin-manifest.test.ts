@@ -15,6 +15,10 @@ import { cleanUpPluginFixtures } from './fixtures/temp-roots'
 afterEach(cleanUpPluginFixtures)
 
 describe('loadManifest', () => {
+  /**
+   * Given the manifest of the spec's own §5.2 example, when loaded, the
+   * plugin loads carrying that name and no report is emitted.
+   */
   test('minimal valid manifest (spec 1.0.0 §5.2 example) → ok with no reports', () => {
     const root = makePluginRoot(
       JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin' }),
