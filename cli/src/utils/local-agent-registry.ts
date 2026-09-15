@@ -11,6 +11,7 @@ import {
 import type { MCPConfig } from '@codebuff/common/types/mcp'
 
 import { getSelectedFreebuffModel } from '../state/freebuff-model-store'
+import { pluginMcpServers } from './plugin-discovery'
 import { getProjectRoot } from '../project-files'
 import { IS_FREEBUFF, type AgentMode } from './constants'
 import { getAgentIdForMode } from './freebuff-agent-selection'
@@ -87,6 +88,10 @@ export async function initializeAgentRegistry(): Promise<void> {
     logger.warn({ error }, 'Failed to load MCP config from .agents directories')
     mcpServersCache = {}
   }
+  // An agent plugin's MCP servers join the user's own mcp.json servers;
+  // install aborted on any name conflict, so an agent plugin's MCP server
+  // never shadows one of the user's.
+  Object.assign(mcpServersCache, pluginMcpServers())
 }
 
 /**

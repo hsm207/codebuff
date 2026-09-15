@@ -10,6 +10,7 @@ import { loadPlugin } from '@codebuff/common/plugins/load-plugin'
 import { getPluginsRoot } from './plugins-root'
 
 import type { LoadPluginResult } from '@codebuff/common/plugins/load-plugin'
+import type { MCPConfig } from '@codebuff/common/types/mcp'
 import type { SkillsMap } from '@codebuff/common/types/skill'
 
 /**
@@ -31,7 +32,7 @@ export interface PluginSkillsOptions {
  */
 export function loadInstalledPlugins(
   pluginsRoot: string,
-  readSkillsDir: (skillsDir: string) => SkillsMap,
+  readSkillsDir?: (skillsDir: string) => SkillsMap,
 ): LoadPluginResult[] {
   let entries: Dirent[]
   try {
@@ -43,7 +44,10 @@ export function loadInstalledPlugins(
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((entry) =>
-      loadPlugin(path.join(pluginsRoot, entry.name), readSkillsDir),
+      loadPlugin(
+        path.join(pluginsRoot, entry.name),
+        readSkillsDir ?? (() => ({})),
+      ),
     )
 }
 
@@ -53,10 +57,6 @@ export function loadInstalledPlugins(
  * own skills load. Plugins register last and can never shadow either
  * root: install already aborted on any name conflict. An unreadable
  * plugins root contributes an empty map; a plugin with no skills, too.
- *
- * Kept beside the discovery it composes, rather than inside the skill
- * registry itself: the registry's own file stays small, so changes to it
- * upstream stay easy to reconcile.
  */
 export function pluginSkills(options: PluginSkillsOptions = {}): SkillsMap {
   const readSkillsDir = options.readSkillsDir ?? sdkReadSkillsDir
@@ -78,3 +78,28 @@ export function pluginSkills(options: PluginSkillsOptions = {}): SkillsMap {
  */
 const sdkReadSkillsDir = (skillsPath: string): SkillsMap =>
   loadSkillsSync({ skillsPath, verbose: false })
+
+/**
+ * MCP servers from every installed plugin, merged into one map — the
+ * value the agent registry assigns over its server cache after the
+ * user's own mcp.json loads. An agent plugin's MCP servers cannot shadow
+ * one of the user's: install aborted on any name conflict. The map holds
+ * the same freebuff shapes the user's own mcp.json parses into, so the
+ * session cannot tell an agent plugin's MCP server from one the user
+ * wrote themselves. An unreadable
+ * plugins root contributes an empty map; a plugin with no servers, too.
+ */
+export function pluginMcpServers(
+  options: { pluginsRoot?: string } = {},
+): Record<string, MCPConfig> {
+  const merged: Record<string, MCPConfig> = {}
+
+  for (const result of loadInstalledPlugins(
+    options.pluginsRoot ?? getPluginsRoot(),
+  )) {
+    if (result.ok) {
+      Object.assign(merged, result.plugin.mcpServers)
+    }
+  }
+  return merged
+}
