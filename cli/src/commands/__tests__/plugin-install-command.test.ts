@@ -19,19 +19,32 @@ import {
 
 afterEach(cleanUpPluginTestDirs)
 
-/** Captures console output while the command runs. */
-async function captureConsole(run: () => Promise<void>): Promise<string[]> {
+/**
+ * Runs the command and reports what a shell would see: the console output,
+ * and the status the process would end with. Both are restored afterwards,
+ * so no row inherits the previous row's capture or exit code. The status
+ * reset writes 0 rather than `undefined`, which bun keeps as the last value
+ * it was given.
+ */
+async function runCommand(run: () => Promise<void>) {
   const lines: string[] = []
-  const original = console.log
+  const originalLog = console.log
+  const previousExitCode = process.exitCode
+  let exitCode = 0
+  process.exitCode = 0
   console.log = (...parts: unknown[]) => {
     lines.push(parts.map(String).join(' '))
   }
+
   try {
     await run()
+    exitCode = Number(process.exitCode ?? 0)
   } finally {
-    console.log = original
+    console.log = originalLog
+    process.exitCode = previousExitCode ?? 0
   }
-  return lines
+
+  return { output: lines.join('\n'), exitCode }
 }
 
 describe('the plugin command entry', () => {
@@ -40,11 +53,12 @@ describe('the plugin command entry', () => {
    * prints the usage line and exits nonzero.
    */
   test('an unknown subcommand prints usage and exits nonzero', async () => {
-    const lines = await captureConsole(() =>
+    const { output, exitCode } = await runCommand(() =>
       runPluginCommand(['update', 'https://github.com/google/skills']),
     )
 
-    expect(lines.join('\n')).toContain('Usage: freebuff plugin install <url>')
+    expect(output).toContain('Usage: freebuff plugin install <url>')
+    expect(exitCode).toBe(1)
   })
 })
 
@@ -55,11 +69,13 @@ describe('the plugin install command runner', () => {
    * any install work begins.
    */
   test('not exactly one URL prints usage and exits nonzero', async () => {
-    const lines = await captureConsole(() => runPluginInstallCommand([], {}))
+    const { output, exitCode } = await runCommand(() =>
+      runPluginInstallCommand([], {}),
+    )
 
-    const output = lines.join('\n')
     expect(output).toContain('Usage: freebuff plugin install <url>')
     expect(output).toContain('https://github.com/owner/repo')
+    expect(exitCode).toBe(1)
   })
 
   /**
@@ -75,14 +91,14 @@ describe('the plugin install command runner', () => {
       'skills-main/mcp.json': MCP_JSON,
     })
 
-    const lines = await captureConsole(() =>
+    const { output, exitCode } = await runCommand(() =>
       runPluginInstallCommand(['https://github.com/google/skills'], {
         fetchImpl: fetchReturning(blob),
         pluginsRoot,
       }),
     )
 
-    const output = lines.join('\n')
+    expect(exitCode).toBe(0)
     expect(output).toContain('✔')
     expect(output).toContain('test-plugin 1.0.0')
     expect(output).toContain('github.com/google/skills')
@@ -96,7 +112,7 @@ describe('the plugin install command runner', () => {
    * reason and exits nonzero.
    */
   test('a failed install prints the reason and exits nonzero', async () => {
-    const lines = await captureConsole(() =>
+    const { output, exitCode } = await runCommand(() =>
       runPluginInstallCommand(['https://github.com/google/skills'], {
         fetchImpl: () =>
           Promise.resolve(new Response('not found', { status: 404 })),
@@ -104,7 +120,8 @@ describe('the plugin install command runner', () => {
       }),
     )
 
-    expect(lines.join('\n')).toContain('could not download')
+    expect(output).toContain('could not download')
+    expect(exitCode).toBe(1)
   })
 
   /**
@@ -118,7 +135,7 @@ describe('the plugin install command runner', () => {
       'skills-main/skills/gcloud/SKILL.md': SKILL_MD,
     })
 
-    const lines = await captureConsole(() =>
+    const { output, exitCode } = await runCommand(() =>
       runPluginInstallCommand(['https://github.com/google/skills'], {
         fetchImpl: fetchReturning(blob),
         pluginsRoot,
@@ -126,6 +143,7 @@ describe('the plugin install command runner', () => {
       }),
     )
 
-    expect(lines.join('\n')).toContain('gcloud')
+    expect(output).toContain('gcloud')
+    expect(exitCode).toBe(1)
   })
 })
