@@ -7,7 +7,7 @@ import { afterEach, describe, expect, test } from 'bun:test'
 let tempDirs: string[] = []
 
 function makeTempDir(): string {
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'plugin-t34-test-'))
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'plugin-child-process-test-'))
   tempDirs.push(dir)
   return dir
 }
