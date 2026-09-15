@@ -1,5 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import os from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { afterEach, describe, expect, test } from 'bun:test'
@@ -7,32 +6,18 @@ import { mcpConfigSchema } from '@codebuff/common/types/mcp'
 
 import { pluginMcpServers } from '../plugin-discovery'
 
-let tempDirs: string[] = []
+import {
+  cleanUpPluginTestDirs,
+  makeTempDir,
+  PLUGIN_JSON,
+} from '../../__tests__/helpers/plugin-fixtures'
 
-function makeTempDir(): string {
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'plugin-mcp-test-'))
-  tempDirs.push(dir)
-  return dir
-}
+afterEach(cleanUpPluginTestDirs)
 
-afterEach(() => {
-  for (const dir of tempDirs) {
-    rmSync(dir, { recursive: true, force: true })
-  }
-  tempDirs = []
-})
-
+/** Writes one plugin root: manifest plus the given MCP server declarations. */
 function writePluginRoot(pluginDir: string, mcpServers: object): void {
   mkdirSync(pluginDir, { recursive: true })
-  writeFileSync(
-    path.join(pluginDir, 'plugin.json'),
-    JSON.stringify({
-      $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
-      name: 'test-plugin',
-      version: '1.0.0',
-      description: 'a test plugin',
-    }),
-  )
+  writeFileSync(path.join(pluginDir, 'plugin.json'), PLUGIN_JSON)
   writeFileSync(
     path.join(pluginDir, 'mcp.json'),
     JSON.stringify({
@@ -50,7 +35,7 @@ describe('plugin MCP servers for the session server map', () => {
    * schema accepts, with the plugin-only fields gone.
    */
   test("an agent plugin's MCP server arrives in the freebuff shape", () => {
-    const pluginsRoot = makeTempDir()
+    const pluginsRoot = makeTempDir('plugin-mcp-test-')
     writePluginRoot(pluginsRoot + '/test-plugin', {
       'developer-knowledge': {
         type: 'streamable-http',
@@ -75,7 +60,7 @@ describe('plugin MCP servers for the session server map', () => {
    * half of the server map loads, both come back in one map.
    */
   test('servers from several plugins merge into one map', () => {
-    const pluginsRoot = makeTempDir()
+    const pluginsRoot = makeTempDir('plugin-mcp-test-')
     writePluginRoot(pluginsRoot + '/plugin-a', {
       'server-a': { type: 'streamable-http', url: 'https://a.example/mcp' },
     })
@@ -98,7 +83,7 @@ describe('plugin MCP servers for the session server map', () => {
    */
   test('a missing plugins root contributes nothing', () => {
     const servers = pluginMcpServers({
-      pluginsRoot: path.join(makeTempDir(), 'does-not-exist'),
+      pluginsRoot: path.join(makeTempDir('plugin-mcp-test-'), 'does-not-exist'),
     })
 
     expect(servers).toEqual({})

@@ -1,5 +1,3 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 
 import { afterEach, describe, expect, test } from 'bun:test'
@@ -9,51 +7,17 @@ import {
   runPluginInstallCommand,
 } from '../plugin-install-command'
 
-let tempDirs: string[] = []
+import {
+  cleanUpPluginTestDirs,
+  fetchReturning,
+  makeTarball,
+  makeTempDir,
+  MCP_JSON,
+  PLUGIN_JSON,
+  SKILL_MD,
+} from '../../__tests__/helpers/plugin-fixtures'
 
-function makeTempDir(): string {
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'plugin-cmd-test-'))
-  tempDirs.push(dir)
-  return dir
-}
-
-afterEach(() => {
-  for (const dir of tempDirs) {
-    rmSync(dir, { recursive: true, force: true })
-  }
-  tempDirs = []
-})
-
-const PLUGIN_JSON = JSON.stringify({
-  $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
-  name: 'test-plugin',
-  version: '1.0.0',
-  description: 'a test plugin',
-})
-
-const SKILL_MD = [
-  '---',
-  'name: gcloud',
-  'description: A test skill.',
-  '---',
-  '',
-  'Skill body.',
-  '',
-].join('\n')
-
-const MCP_JSON = JSON.stringify({
-  $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
-  mcpServers: {
-    'test-server': { type: 'streamable-http', url: 'https://example.com/mcp' },
-  },
-})
-
-/** A gzipped tarball shaped like a codeload download: <repo>-<ref>/... */
-async function makeTarball(entries: Record<string, string>): Promise<Blob> {
-  const tarPath = path.join(makeTempDir(), 'bundle.tar.gz')
-  await Bun.Archive.write(tarPath, entries, { compress: 'gzip' })
-  return new Blob([readFileSync(tarPath)])
-}
+afterEach(cleanUpPluginTestDirs)
 
 /** Captures console output while the command runs. */
 async function captureConsole(run: () => Promise<void>): Promise<string[]> {
@@ -104,7 +68,7 @@ describe('the plugin install command runner', () => {
    * source, counts, and the data dir — and exits zero.
    */
   test('a successful install prints the success render', async () => {
-    const pluginsRoot = makeTempDir()
+    const pluginsRoot = makeTempDir('plugin-cmd-test-')
     const blob = await makeTarball({
       'skills-main/plugin.json': PLUGIN_JSON,
       'skills-main/skills/gcloud/SKILL.md': SKILL_MD,
@@ -113,7 +77,7 @@ describe('the plugin install command runner', () => {
 
     const lines = await captureConsole(() =>
       runPluginInstallCommand(['https://github.com/google/skills'], {
-        fetchImpl: () => Promise.resolve(new Response(blob, { status: 200 })),
+        fetchImpl: fetchReturning(blob),
         pluginsRoot,
       }),
     )
@@ -136,7 +100,7 @@ describe('the plugin install command runner', () => {
       runPluginInstallCommand(['https://github.com/google/skills'], {
         fetchImpl: () =>
           Promise.resolve(new Response('not found', { status: 404 })),
-        pluginsRoot: makeTempDir(),
+        pluginsRoot: makeTempDir('plugin-cmd-test-'),
       }),
     )
 
@@ -148,7 +112,7 @@ describe('the plugin install command runner', () => {
    * when the command runs, it prints the conflict and exits nonzero.
    */
   test('a name conflict prints the collision and exits nonzero', async () => {
-    const pluginsRoot = makeTempDir()
+    const pluginsRoot = makeTempDir('plugin-cmd-test-')
     const blob = await makeTarball({
       'skills-main/plugin.json': PLUGIN_JSON,
       'skills-main/skills/gcloud/SKILL.md': SKILL_MD,
@@ -156,7 +120,7 @@ describe('the plugin install command runner', () => {
 
     const lines = await captureConsole(() =>
       runPluginInstallCommand(['https://github.com/google/skills'], {
-        fetchImpl: () => Promise.resolve(new Response(blob, { status: 200 })),
+        fetchImpl: fetchReturning(blob),
         pluginsRoot,
         existingSkillNames: () => new Set(['gcloud']),
       }),

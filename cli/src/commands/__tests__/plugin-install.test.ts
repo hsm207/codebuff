@@ -1,68 +1,23 @@
-import {
-  existsSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-} from 'node:fs'
-import os from 'node:os'
+import { existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 
 import { afterEach, describe, expect, test } from 'bun:test'
 
 import { handlePluginInstall } from '../plugin-install'
 
+import {
+  cleanUpPluginTestDirs,
+  fetchReturning,
+  makeTarball,
+  makeTempDir,
+  MCP_JSON,
+  PLUGIN_JSON,
+  SKILL_MD,
+} from '../../__tests__/helpers/plugin-fixtures'
+
 import type { PluginInstallOptions } from '../plugin-install'
 
-let tempDirs: string[] = []
-
-function makeTempDir(): string {
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'plugin-install-test-'))
-  tempDirs.push(dir)
-  return dir
-}
-
-afterEach(() => {
-  for (const dir of tempDirs) {
-    rmSync(dir, { recursive: true, force: true })
-  }
-  tempDirs = []
-})
-
-const PLUGIN_JSON = JSON.stringify({
-  $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
-  name: 'test-plugin',
-  version: '1.0.0',
-  description: 'a test plugin',
-})
-
-const SKILL_MD = [
-  '---',
-  'name: gcloud',
-  'description: A test skill.',
-  '---',
-  '',
-  'Skill body.',
-  '',
-].join('\n')
-
-const MCP_JSON = JSON.stringify({
-  $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
-  mcpServers: {
-    'test-server': { type: 'streamable-http', url: 'https://example.com/mcp' },
-  },
-})
-
-/** A gzipped tarball shaped like a codeload download: <repo>-<ref>/... */
-async function makeTarball(entries: Record<string, string>): Promise<Blob> {
-  const tarPath = path.join(makeTempDir(), 'bundle.tar.gz')
-  await Bun.Archive.write(tarPath, entries, { compress: 'gzip' })
-  return new Blob([readFileSync(tarPath)])
-}
-
-function fetchReturning(blob: Blob): PluginInstallOptions['fetchImpl'] {
-  return () => Promise.resolve(new Response(blob, { status: 200 }))
-}
+afterEach(cleanUpPluginTestDirs)
 
 describe('plugin install', () => {
   /**
@@ -72,7 +27,7 @@ describe('plugin install', () => {
    * needs — name, version, counts.
    */
   test('installs a valid plugin tarball', async () => {
-    const pluginsRoot = makeTempDir()
+    const pluginsRoot = makeTempDir('plugin-install-test-')
     const blob = await makeTarball({
       'skills-main/plugin.json': PLUGIN_JSON,
       'skills-main/skills/gcloud/SKILL.md': SKILL_MD,
@@ -107,7 +62,7 @@ describe('plugin install', () => {
    * fails with the reason and nothing is written under the plugins root.
    */
   test('a failed fetch aborts clean', async () => {
-    const pluginsRoot = makeTempDir()
+    const pluginsRoot = makeTempDir('plugin-install-test-')
     const fetchFailing: PluginInstallOptions['fetchImpl'] = () =>
       Promise.resolve(new Response('not found', { status: 404 }))
 
@@ -127,7 +82,7 @@ describe('plugin install', () => {
    * (§5.3) — and nothing is written.
    */
   test('a missing manifest aborts clean', async () => {
-    const pluginsRoot = makeTempDir()
+    const pluginsRoot = makeTempDir('plugin-install-test-')
     const blob = await makeTarball({
       'skills-main/README.md': 'no plugin here',
     })
@@ -146,7 +101,7 @@ describe('plugin install', () => {
    * fails with the manifest reason and nothing is written.
    */
   test('an invalid manifest aborts clean', async () => {
-    const pluginsRoot = makeTempDir()
+    const pluginsRoot = makeTempDir('plugin-install-test-')
     const blob = await makeTarball({
       'skills-main/plugin.json': '{"name": 42}',
     })
@@ -166,7 +121,7 @@ describe('plugin install', () => {
    * existing install — and the existing install is untouched.
    */
   test('an already-installed name aborts clean', async () => {
-    const pluginsRoot = makeTempDir()
+    const pluginsRoot = makeTempDir('plugin-install-test-')
     const existing = path.join(pluginsRoot, 'test-plugin')
     await Bun.write(path.join(existing, 'plugin.json'), PLUGIN_JSON)
 
@@ -190,7 +145,7 @@ describe('plugin install', () => {
    * is written.
    */
   test('a colliding skill name aborts clean', async () => {
-    const pluginsRoot = makeTempDir()
+    const pluginsRoot = makeTempDir('plugin-install-test-')
 
     const blob = await makeTarball({
       'skills-main/plugin.json': PLUGIN_JSON,
@@ -217,7 +172,7 @@ describe('plugin install', () => {
    * written.
    */
   test('a colliding MCP server name aborts clean', async () => {
-    const pluginsRoot = makeTempDir()
+    const pluginsRoot = makeTempDir('plugin-install-test-')
 
     const blob = await makeTarball({
       'skills-main/plugin.json': PLUGIN_JSON,

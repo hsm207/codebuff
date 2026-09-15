@@ -1,44 +1,20 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import os from 'node:os'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 import { afterEach, describe, expect, test } from 'bun:test'
 
 import { pluginSkills } from '../plugin-discovery'
 
+import {
+  cleanUpPluginTestDirs,
+  makeTempDir,
+  PLUGIN_JSON,
+  SKILL_MD,
+} from '../../__tests__/helpers/plugin-fixtures'
+
 import type { SkillsMap } from '@codebuff/common/types/skill'
 
-let tempDirs: string[] = []
-
-function makeTempDir(): string {
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'plugin-registry-test-'))
-  tempDirs.push(dir)
-  return dir
-}
-
-afterEach(() => {
-  for (const dir of tempDirs) {
-    rmSync(dir, { recursive: true, force: true })
-  }
-  tempDirs = []
-})
-
-const PLUGIN_JSON = JSON.stringify({
-  $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
-  name: 'test-plugin',
-  version: '1.0.0',
-  description: 'a test plugin',
-})
-
-const SKILL_MD = [
-  '---',
-  'name: gcloud',
-  'description: A plugin skill.',
-  '---',
-  '',
-  'Skill body.',
-  '',
-].join('\n')
+afterEach(cleanUpPluginTestDirs)
 
 /**
  * Writes one plugin root: manifest plus a single skill directory. The
@@ -74,7 +50,7 @@ describe('plugin skills for the session registry', () => {
    * seam, with the reader injected so no test touches the real home.
    */
   test('a plugin skill comes back via its skills dir', () => {
-    const pluginsRoot = makeTempDir()
+    const pluginsRoot = makeTempDir('plugin-registry-test-')
     writePluginRoot(path.join(pluginsRoot, 'test-plugin'))
 
     const readDirs: string[] = []
@@ -103,7 +79,10 @@ describe('plugin skills for the session registry', () => {
 
     const skills = pluginSkills({
       readSkillsDir,
-      pluginsRoot: path.join(makeTempDir(), 'does-not-exist'),
+      pluginsRoot: path.join(
+        makeTempDir('plugin-registry-test-'),
+        'does-not-exist',
+      ),
     })
 
     expect(skills).toEqual({})
@@ -120,7 +99,7 @@ describe('plugin skills for the session registry', () => {
    * to start alphanumeric, so no real plugin root can be a dot-directory.
    */
   test('non-plugin and invalid entries contribute nothing', () => {
-    const pluginsRoot = makeTempDir()
+    const pluginsRoot = makeTempDir('plugin-registry-test-')
     writePluginRoot(path.join(pluginsRoot, 'test-plugin'))
     writePluginRoot(path.join(pluginsRoot, '.data'), 'decoy-plugin')
     mkdirSync(path.join(pluginsRoot, 'not-a-plugin'), { recursive: true })
