@@ -2,6 +2,19 @@ import { describe, expect, test } from 'bun:test'
 
 import { parsePluginSourceUrl } from '../install-url'
 
+import type { ParsePluginSourceResult } from '../install-url'
+
+/**
+ * Asserts the parse succeeded, failing with the parser's reason otherwise,
+ * and returns the source so tests assert on the coordinates, never on the
+ * result's shape.
+ */
+function expectSourceOk(result: ParsePluginSourceResult) {
+  expect(result.ok).toBe(true)
+  if (!result.ok) throw new Error(`expected ok, got: ${result.reason}`)
+  return result.source
+}
+
 describe('plugin install URL parse', () => {
   /**
    * Given a GitHub URL in one of the accepted forms, when parsed, it
@@ -45,10 +58,9 @@ describe('plugin install URL parse', () => {
       },
     },
   ])('$form → $want.repo @ $want.ref', ({ url, want }) => {
-    const result = parsePluginSourceUrl(url)
-    if (!result.ok) throw new Error(`expected ok, got: ${result.reason}`)
+    const source = expectSourceOk(parsePluginSourceUrl(url))
 
-    expect(result.source).toEqual(want)
+    expect(source).toEqual(want)
   })
 
   /**

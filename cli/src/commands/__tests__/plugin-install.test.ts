@@ -7,6 +7,7 @@ import { handlePluginInstall } from '../plugin-install'
 
 import {
   cleanUpPluginTestDirs,
+  expectInstallOk,
   fetchReturning,
   makeTarball,
   makeTempDir,
@@ -34,17 +35,15 @@ describe('plugin install', () => {
       'skills-main/mcp.json': MCP_JSON,
     })
 
-    const result = await handlePluginInstall(
-      'https://github.com/google/skills',
-      {
+    const result = expectInstallOk(
+      await handlePluginInstall('https://github.com/google/skills', {
         fetchImpl: fetchReturning(blob),
         pluginsRoot,
         existingSkillNames: () => new Set(),
         existingMcpServerNames: () => new Set(),
-      },
+      }),
     )
 
-    if (!result.success) throw new Error(`expected success: ${result.error}`)
     expect(result.pluginName).toBe('test-plugin')
     expect(result.version).toBe('1.0.0')
     expect(result.skillsCount).toBe(1)

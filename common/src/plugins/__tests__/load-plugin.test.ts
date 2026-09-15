@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test } from 'bun:test'
 
 import { loadPlugin } from '../load-plugin'
 
+import { expectPluginOk, expectPluginRejected } from './fixtures/load-plugin'
 import { INVALID_JSON_TEXT, makeMCPRoot } from './fixtures/mcp'
 import { SKILL_NAME, makeRootWithSkill } from './fixtures/skills'
 import { cleanUpPluginFixtures } from './fixtures/temp-roots'
@@ -31,8 +32,7 @@ describe('loadPlugin composition', () => {
     const root = makeRootWithSkill()
     writeFileSync(path.join(root, 'mcp.json'), INVALID_JSON_TEXT, 'utf8')
 
-    const result = loadPlugin(root, readSkills)
-    if (!result.ok) throw new Error(`expected ok, got: ${result.reason}`)
+    const result = expectPluginOk(loadPlugin(root, readSkills))
 
     expect(result.plugin.manifest.name).toBe('minimal-plugin')
     expect(Object.keys(result.plugin.skills)).toEqual([SKILL_NAME])
@@ -54,10 +54,7 @@ describe('loadPlugin composition', () => {
     const root = makeRootWithSkill()
     rmSync(path.join(root, 'plugin.json'))
 
-    const result = loadPlugin(root, readSkills)
-
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.reason).toContain('plugin.json')
+    expectPluginRejected(loadPlugin(root, readSkills), 'plugin.json')
   })
 
   /**
@@ -68,13 +65,10 @@ describe('loadPlugin composition', () => {
   test('a refused component rides as reports while the plugin loads', () => {
     const root = makeMCPRoot(INVALID_JSON_TEXT)
 
-    const result = loadPlugin(root, readSkills)
+    const result = expectPluginOk(loadPlugin(root, readSkills))
 
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.plugin.mcpServers).toEqual({})
-      expect(result.reports).toHaveLength(1)
-      expect(result.reports[0]?.section).toBe('§7.2')
-    }
+    expect(result.plugin.mcpServers).toEqual({})
+    expect(result.reports).toHaveLength(1)
+    expect(result.reports[0]?.section).toBe('§7.2')
   })
 })

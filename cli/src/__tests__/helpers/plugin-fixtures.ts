@@ -2,7 +2,12 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import type { PluginInstallOptions } from '../../commands/plugin-install'
+import { expect } from 'bun:test'
+
+import type {
+  PluginInstallOptions,
+  PluginInstallResult,
+} from '../../commands/plugin-install'
 
 /**
  * Fixtures shared by the plugin CLI test files — the install pipeline, the
@@ -71,6 +76,17 @@ export async function makeTarball(
   )
   await Bun.Archive.write(tarPath, entries, { compress: 'gzip' })
   return new Blob([readFileSync(tarPath)])
+}
+
+/**
+ * Asserts the install succeeded, failing with the pipeline's reason
+ * otherwise, and returns the result so a row asserts on the installed
+ * values rather than guarding its way to them.
+ */
+export function expectInstallOk(result: PluginInstallResult) {
+  expect(result.success).toBe(true)
+  if (!result.success) throw new Error(`expected install, got: ${result.error}`)
+  return result
 }
 
 /** The fetch seam answering every request with the given tarball, status 200. */
