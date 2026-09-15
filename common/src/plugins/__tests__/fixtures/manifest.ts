@@ -6,7 +6,7 @@ import { expect } from 'bun:test'
 
 import { linkJunction, makeOutsideDir, makeTempDir } from './temp-roots'
 
-import type { LoadManifestResult } from '../../manifest'
+import type { LoadManifestResult } from '../../load-plugin-manifest'
 import type { PluginReport } from '../../report'
 
 /**

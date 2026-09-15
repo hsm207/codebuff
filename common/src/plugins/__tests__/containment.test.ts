@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 
-import { loadManifest } from '../manifest'
+import { loadManifest } from '../load-plugin-manifest'
 
 import {
   expectManifestOk,

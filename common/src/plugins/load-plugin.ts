@@ -1,6 +1,6 @@
 import path from 'node:path'
 
-import { loadManifest } from './manifest'
+import { loadManifest } from './load-plugin-manifest'
 import { loadPluginMCP } from './mcp-config'
 import { loadPluginSkills } from './skills'
 
