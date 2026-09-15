@@ -81,7 +81,8 @@ describe('top-level fields (spec §5.2)', () => {
   /**
    * Given a valid manifest carrying two unknown top-level fields, when
    * loaded, one report names each field (§5.2 "report ... each unknown
-   * field").
+   * field") — the spec orders the fields, not the reports, so the row
+   * claims presence per field rather than report positions.
    */
   test('each unknown field gets its own report', () => {
     const root = makePluginRoot(
@@ -97,9 +98,8 @@ describe('top-level fields (spec §5.2)', () => {
 
     const { reports } = expectManifestOk(result)
     expect(reports).toHaveLength(2)
-    const reported = reports.map((report) => report.message)
-    expect(reported[0]).toContain('bogus')
-    expect(reported[1]).toContain('wat')
+    expectReportAbout(reports, '§5.2', 'bogus')
+    expectReportAbout(reports, '§5.2', 'wat')
   })
 
   /**
