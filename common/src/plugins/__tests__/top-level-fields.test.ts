@@ -6,6 +6,7 @@ import {
   CANONICAL_SCHEMA,
   expectManifestOk,
   expectManifestRejected,
+  expectReportAbout,
   makePluginRoot,
   TOP_LEVEL_ARRAY_JSON,
   TOP_LEVEL_NULL_JSON,
@@ -74,8 +75,7 @@ describe('top-level fields (spec §5.2)', () => {
     const { manifest, reports } = expectManifestOk(result)
     expect(manifest).not.toHaveProperty('bogus')
     expect(reports).toHaveLength(1)
-    expect(reports[0].section).toBe('§5.2')
-    expect(reports[0].message).toContain('bogus')
+    expectReportAbout(reports, '§5.2', 'bogus')
   })
 
   /**

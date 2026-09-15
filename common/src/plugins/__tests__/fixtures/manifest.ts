@@ -7,6 +7,7 @@ import { expect } from 'bun:test'
 import { linkJunction, makeOutsideDir, makeTempDir } from './temp-roots'
 
 import type { LoadManifestResult } from '../../manifest'
+import type { PluginReport } from '../../report'
 
 /**
  * The manifest-component fixtures: §5 constants, manifest-root builders
@@ -185,4 +186,24 @@ export function expectManifestRejected(
   if (result.ok) throw new Error(`expected rejection blaming ${blame}, got ok`)
   expect(result.reason).toContain(blame)
   return result
+}
+
+/**
+ * Asserts one report about `field` under `section` exists and returns it,
+ * so a row claims the report's presence and adds field-specific claims
+ * without reaching into report indices the spec never ordered.
+ */
+export function expectReportAbout(
+  reports: PluginReport[],
+  section: string,
+  field: string,
+): PluginReport {
+  const report = reports.find(
+    (candidate) =>
+      candidate.section === section && candidate.message.includes(field),
+  )
+  expect(report).toBeDefined()
+  if (!report)
+    throw new Error(`expected a ${section} report naming ${field}, got none`)
+  return report
 }

@@ -5,6 +5,7 @@ import { loadManifest } from '../manifest'
 import {
   CANONICAL_SCHEMA,
   expectManifestOk,
+  expectReportAbout,
   makePluginRoot,
 } from './fixtures/manifest'
 import { cleanUpPluginFixtures } from './fixtures/temp-roots'
@@ -70,7 +71,6 @@ describe('extensions field (spec §8.1)', () => {
     const { manifest, reports } = expectManifestOk(result)
     expect(manifest.extensions).toBeUndefined()
     expect(reports).toHaveLength(1)
-    expect(reports[0].section).toBe('§8.1')
-    expect(reports[0].message).toContain('extensions')
+    expectReportAbout(reports, '§8.1', 'extensions')
   })
 })
