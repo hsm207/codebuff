@@ -20,37 +20,56 @@ import type { PluginInstallOptions } from '../plugin-install'
 
 afterEach(cleanUpPluginTestDirs)
 
+/**
+ * Installs the standard plugin — manifest, one skill, one server — into a
+ * fresh plugins root, so the success rows below each claim one observable
+ * of the same install.
+ */
+async function installStandardPlugin(pluginsRoot: string) {
+  const blob = await makeTarball({
+    'skills-main/plugin.json': PLUGIN_JSON,
+    'skills-main/skills/gcloud/SKILL.md': SKILL_MD,
+    'skills-main/mcp.json': MCP_JSON,
+  })
+
+  return handlePluginInstall('https://github.com/google/skills', {
+    fetchImpl: fetchReturning(blob),
+    pluginsRoot,
+    existingSkillNames: () => new Set(),
+    existingMcpServerNames: () => new Set(),
+  })
+}
+
 describe('plugin install', () => {
   /**
    * Given a fetched tarball carrying a valid plugin, when installed, the
-   * plugin root lands under the plugins root named after the manifest,
-   * the data dir is provisioned, and the result carries what the render
-   * needs — name, version, counts.
+   * result carries what the render needs: the manifest's name and
+   * version, and the component counts.
    */
-  test('installs a valid plugin tarball', async () => {
+  test('the result reports the installed plugin', async () => {
     const pluginsRoot = makeTempDir('plugin-install-test-')
-    const blob = await makeTarball({
-      'skills-main/plugin.json': PLUGIN_JSON,
-      'skills-main/skills/gcloud/SKILL.md': SKILL_MD,
-      'skills-main/mcp.json': MCP_JSON,
-    })
 
-    const result = expectInstallOk(
-      await handlePluginInstall('https://github.com/google/skills', {
-        fetchImpl: fetchReturning(blob),
-        pluginsRoot,
-        existingSkillNames: () => new Set(),
-        existingMcpServerNames: () => new Set(),
-      }),
-    )
+    const result = expectInstallOk(await installStandardPlugin(pluginsRoot))
 
     expect(result.pluginName).toBe('test-plugin')
     expect(result.version).toBe('1.0.0')
     expect(result.skillsCount).toBe(1)
     expect(result.mcpServers).toEqual(['test-server'])
-    expect(
-      existsSync(path.join(pluginsRoot, 'test-plugin', 'plugin.json')),
-    ).toBe(true)
+  })
+
+  /**
+   * Given the same install, when it succeeds, the plugin root lands under
+   * the plugins root named after the manifest and the client-managed data
+   * dir is provisioned — the one mkdir the load leaves to the installer.
+   */
+  test('the plugin root and its data dir land under the plugins root', async () => {
+    const pluginsRoot = makeTempDir('plugin-install-test-')
+
+    expectInstallOk(await installStandardPlugin(pluginsRoot))
+
+    const pluginRoot = path.join(pluginsRoot, 'test-plugin')
+
+    expect(existsSync(path.join(pluginRoot, 'plugin.json'))).toBe(true)
     expect(existsSync(path.join(pluginsRoot, '.data', 'test-plugin'))).toBe(
       true,
     )
