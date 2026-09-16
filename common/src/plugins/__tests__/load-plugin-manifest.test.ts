@@ -8,6 +8,7 @@ import {
   expectManifestRejected,
   makePluginRoot,
   makeRootWithoutManifest,
+  MINIMAL_NAME,
   NON_JSON_TEXT,
 } from './fixtures/manifest'
 import { cleanUpPluginFixtures } from './fixtures/temp-roots'
@@ -21,13 +22,13 @@ describe('loadManifest', () => {
    */
   test('minimal valid manifest (spec 1.0.0 §5.2 example) → ok with no reports', () => {
     const root = makePluginRoot(
-      JSON.stringify({ $schema: CANONICAL_SCHEMA, name: 'minimal-plugin' }),
+      JSON.stringify({ $schema: CANONICAL_SCHEMA, name: MINIMAL_NAME }),
     )
 
     const result = loadManifest(root)
 
     const { manifest, reports } = expectManifestOk(result)
-    expect(manifest.name).toBe('minimal-plugin')
+    expect(manifest.name).toBe(MINIMAL_NAME)
     expect(reports).toHaveLength(0)
   })
 
@@ -67,7 +68,7 @@ describe('loadManifest', () => {
      * with the reason naming $schema.
      */
     test('a manifest without $schema is rejected, naming $schema', () => {
-      const root = makePluginRoot(JSON.stringify({ name: 'minimal-plugin' }))
+      const root = makePluginRoot(JSON.stringify({ name: MINIMAL_NAME }))
 
       const result = loadManifest(root)
 
@@ -106,7 +107,7 @@ describe('loadManifest', () => {
      */
     test('a manifest with a non-string $schema is rejected, naming $schema', () => {
       const root = makePluginRoot(
-        JSON.stringify({ $schema: null, name: 'minimal-plugin' }),
+        JSON.stringify({ $schema: null, name: MINIMAL_NAME }),
       )
 
       const result = loadManifest(root)

@@ -24,6 +24,9 @@ export const CANONICAL_SCHEMA =
 export const UNSUPPORTED_SCHEMA =
   'https://agent-plugins.org/schemas/2.0.0/plugin.schema.json'
 
+/** The §5.5 name of the §5.2 minimal-manifest example, used across the tests. */
+export const MINIMAL_NAME = 'minimal-plugin'
+
 /** Longest allowed plugin name — 64 is the inclusive upper edge (spec §5.5). */
 export const MAX_NAME_LENGTH = 64
 
@@ -149,7 +152,7 @@ function minimalManifestJson(
 ): string {
   return JSON.stringify({
     $schema: CANONICAL_SCHEMA,
-    name: 'minimal-plugin',
+    name: MINIMAL_NAME,
     ...extraFields,
   })
 }

@@ -8,6 +8,7 @@ import { loadPlugin } from '../load-plugin'
 
 import { expectPluginOk, expectPluginRejected } from './fixtures/load-plugin'
 import { INVALID_JSON_TEXT, makeMCPRoot } from './fixtures/mcp'
+import { MINIMAL_NAME } from './fixtures/manifest'
 import { SKILL_NAME, makeRootWithSkill } from './fixtures/skills'
 import { cleanUpPluginFixtures } from './fixtures/temp-roots'
 
@@ -34,11 +35,11 @@ describe('loadPlugin composition', () => {
 
     const result = expectPluginOk(loadPlugin(root, readSkills))
 
-    expect(result.plugin.manifest.name).toBe('minimal-plugin')
+    expect(result.plugin.manifest.name).toBe(MINIMAL_NAME)
     expect(Object.keys(result.plugin.skills)).toEqual([SKILL_NAME])
     expect(result.plugin.mcpServers).toEqual({})
     expect(result.plugin.dataDir).toBe(
-      path.join(path.dirname(root), '.data', 'minimal-plugin'),
+      path.join(path.dirname(root), '.data', MINIMAL_NAME),
     )
     expect(
       result.reports.some((r) => r.message.includes('not valid JSON')),

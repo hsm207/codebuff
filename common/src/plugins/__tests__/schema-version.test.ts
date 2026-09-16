@@ -5,6 +5,7 @@ import { loadManifest } from '../load-plugin-manifest'
 import {
   expectManifestRejected,
   makePluginRoot,
+  MINIMAL_NAME,
   UNSUPPORTED_SCHEMA,
 } from './fixtures/manifest'
 import {
@@ -22,7 +23,7 @@ describe('schema version selection (spec §5.2)', () => {
    */
   test('an unsupported version is rejected, naming the version it declared', () => {
     const root = makePluginRoot(
-      JSON.stringify({ $schema: UNSUPPORTED_SCHEMA, name: 'minimal-plugin' }),
+      JSON.stringify({ $schema: UNSUPPORTED_SCHEMA, name: MINIMAL_NAME }),
     )
 
     const result = loadManifest(root)
@@ -39,7 +40,7 @@ describe('schema version selection (spec §5.2)', () => {
     const fetchSpy = watchNetworkAccess()
 
     const root = makePluginRoot(
-      JSON.stringify({ $schema: UNSUPPORTED_SCHEMA, name: 'minimal-plugin' }),
+      JSON.stringify({ $schema: UNSUPPORTED_SCHEMA, name: MINIMAL_NAME }),
     )
 
     loadManifest(root)

@@ -7,6 +7,7 @@ import {
   expectManifestRejected,
   makeEscapingManifestRoot,
   makeReparsePointRoot,
+  MINIMAL_NAME,
 } from './fixtures/manifest'
 import { cleanUpPluginFixtures } from './fixtures/temp-roots'
 
@@ -40,6 +41,6 @@ describe('containment (spec §4.1.1)', () => {
     const result = loadManifest(root)
 
     const { manifest } = expectManifestOk(result)
-    expect(manifest.name).toBe('minimal-plugin')
+    expect(manifest.name).toBe(MINIMAL_NAME)
   })
 })
