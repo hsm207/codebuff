@@ -11,7 +11,6 @@ import {
   PLUGIN_JSON,
   SKILL_MD,
 } from '../../__tests__/helpers/plugin-fixtures'
-import { noSkillsReader } from './plugin-test-readers'
 
 import type { SkillsMap } from '@codebuff/common/types/skill'
 
@@ -67,34 +66,13 @@ describe('plugin skills for the session registry', () => {
   })
 
   /**
-   * Given a valid plugin and the no-op reader, when the walk runs with no
-   * skills read, the plugin still loads and contributes no skills
-   */
-  test('a plugin loads with no skills read when the reader reads none', () => {
-    const pluginsRoot = makeTempDir('plugin-registry-test-')
-    writePluginRoot(path.join(pluginsRoot, 'test-plugin'))
-
-    const readDirs: string[] = []
-    const readSkillsDir = (skillsPath: string): SkillsMap => {
-      readDirs.push(skillsPath)
-      return noSkillsReader(skillsPath)
-    }
-
-    const skills = pluginSkills({ readSkillsDir, pluginsRoot })
-
-    expect(skills).toEqual({})
-  })
-
-  /**
    * Given no plugins root at all (a fresh machine), when the plugin half
-   * of the registry loads, the result is empty and the reader is never
-   * asked — absence contributes nothing.
+   * of the registry loads, the result is empty — absence contributes
+   * nothing. The reader throws if the walk ever calls it.
    */
   test('a missing plugins root contributes nothing', () => {
-    const readDirs: string[] = []
-    const readSkillsDir = (skillsPath: string): SkillsMap => {
-      readDirs.push(skillsPath)
-      return {}
+    const readSkillsDir = (_skillsPath: string): SkillsMap => {
+      throw new Error('the walk must not reach for skills without a root')
     }
 
     const skills = pluginSkills({
@@ -106,7 +84,6 @@ describe('plugin skills for the session registry', () => {
     })
 
     expect(skills).toEqual({})
-    expect(readDirs).toEqual([])
   })
 
   /**
