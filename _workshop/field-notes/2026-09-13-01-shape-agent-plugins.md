@@ -36,8 +36,9 @@ mapped to freebuff's `http` transport).
 - spec text is authoritative over the machine-readable schema, so no
   zod — the policy code's docstring records the trade
 - upstream MCP support falls short of §7.2 in places (cwd, env
-  provisioning, `${PLUGIN_ROOT}`/`${PLUGIN_DATA}` expansion) — noted
-  inline at the seams; maintainers decide whether to close the gaps
+  provisioning, `${PLUGIN_ROOT}`/`${PLUGIN_DATA}` expansion) and has
+  no credential path for remote servers wanting ADC-style user auth —
+  noted inline at the seams; maintainers decide whether to close the gaps
 
 ## Processing ledger (append-only)
 
@@ -50,3 +51,6 @@ mapped to freebuff's `http` transport).
   (e182a66b4); SRP arc b4a149106; pruning pass 793abd606
 - (09-16) block 7 opened (PR readiness) — this file compiles into the
   PR description when block 7 clears
+- (09-16) round-2 live smoke PASS (run blind by a fresh agent) — all
+  five steps hold; predicted limitations reproduced (MCP auth floor,
+  no in-session reload)
