@@ -11,6 +11,7 @@ import {
   PLUGIN_JSON,
   SKILL_MD,
 } from '../../__tests__/helpers/plugin-fixtures'
+import { noSkillsReader } from './plugin-test-readers'
 
 import type { SkillsMap } from '@codebuff/common/types/skill'
 
@@ -66,6 +67,25 @@ describe('plugin skills for the session registry', () => {
   })
 
   /**
+   * Given a valid plugin and the no-op reader, when the walk runs with no
+   * skills read, the plugin still loads and contributes no skills
+   */
+  test('a plugin loads with no skills read when the reader reads none', () => {
+    const pluginsRoot = makeTempDir('plugin-registry-test-')
+    writePluginRoot(path.join(pluginsRoot, 'test-plugin'))
+
+    const readDirs: string[] = []
+    const readSkillsDir = (skillsPath: string): SkillsMap => {
+      readDirs.push(skillsPath)
+      return noSkillsReader(skillsPath)
+    }
+
+    const skills = pluginSkills({ readSkillsDir, pluginsRoot })
+
+    expect(skills).toEqual({})
+  })
+
+  /**
    * Given no plugins root at all (a fresh machine), when the plugin half
    * of the registry loads, the result is empty and the reader is never
    * asked — absence contributes nothing.
@@ -90,13 +110,11 @@ describe('plugin skills for the session registry', () => {
   })
 
   /**
-   * Given a plugins root holding `.data` — client-managed state, here
-   * misused by someone parking a *valid* plugin directly inside it — plus
-   * a directory without a manifest and one with an invalid manifest, when
-   * the plugin half of the registry loads, none of them are read, and the
-   * valid neighbor still loads (§5.3: the manifest decides existence).
-   * The dot in `.data` is what keeps it out: §5.5 requires plugin names
-   * to start alphanumeric, so no real plugin root can be a dot-directory.
+   * Given a plugins root holding `.data` (client-managed state, here
+   * misused by parking a *valid* plugin directly inside it) plus a
+   * directory without a manifest and one with an invalid manifest, when
+   * the walk runs, none of them are read and the valid neighbor still
+   * loads (§5.3: the manifest decides existence).
    */
   test('non-plugin and invalid entries contribute nothing', () => {
     const pluginsRoot = makeTempDir('plugin-registry-test-')
