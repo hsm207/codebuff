@@ -7,10 +7,12 @@ import { loadPluginMCP } from '../mcp-config'
 
 import {
   EXPECTED_DEVELOPER_KNOWLEDGE_CONFIG,
+  EXPECTED_LINT_RUNNER_CONFIG,
   INVALID_JSON_TEXT,
   MIXED_ENTRIES_JSON,
   REAL_BUNDLE_MCP_CONFIG_JSON,
   REAL_BUNDLE_MCP_JSON,
+  TWO_SERVERS_JSON,
   UNSUPPORTED_SCHEMA_MCP_JSON,
   expectMCPInvalid,
   expectMCPOk,
@@ -113,6 +115,25 @@ describe('mcp component (spec §7.2)', () => {
     expect(Object.keys(servers)).toEqual(['working'])
     expect(result.reports).toHaveLength(1)
     expect(result.reports[0]?.message).toContain('broken')
+  })
+
+  /**
+   * Given an mcp.json with two conforming entries — one remote, one stdio
+   * — when loaded, both arrive mapped and no report is written: §7.2's
+   * `mcpServers` is a map, so a plugin carrying several MCP servers is the
+   * bare-bones contract, not an edge case.
+   */
+  test('two conforming entries both load', () => {
+    const root = makeMCPRoot(TWO_SERVERS_JSON)
+
+    const result = loadPluginMCP(root)
+
+    const servers = expectMCPOk(result)
+    expect(servers).toEqual({
+      'developer-knowledge': EXPECTED_DEVELOPER_KNOWLEDGE_CONFIG,
+      'lint-runner': EXPECTED_LINT_RUNNER_CONFIG,
+    })
+    expect(result.reports).toEqual([])
   })
 
   /**

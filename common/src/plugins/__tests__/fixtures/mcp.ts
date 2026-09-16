@@ -71,6 +71,26 @@ export const MIXED_ENTRIES_JSON = `{
   }
 }`
 
+/**
+ * An mcp.json with two conforming entries — the real bundle's remote one
+ * plus a stdio sibling — so a row can assert both arrive: the §7.2 file is
+ * a server-per-entry map, and a plugin carrying several MCP servers is
+ * part of the bare-bones contract (human ruling 2026-09-16).
+ */
+export const TWO_SERVERS_JSON = `{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "developer-knowledge": {
+      "type": "streamable-http",
+      "url": "https://developerknowledge.googleapis.com/mcp"
+    },
+    "lint-runner": {
+      "type": "stdio",
+      "command": "./bin/lint-runner"
+    }
+  }
+}`
+
 /** An mcp.json targeting a spec version this client cannot load. */
 export const UNSUPPORTED_SCHEMA_MCP_JSON = REAL_BUNDLE_MCP_JSON.replace(
   '/1.0.0/mcp.schema.json',
@@ -88,6 +108,18 @@ export const EXPECTED_DEVELOPER_KNOWLEDGE_CONFIG: MCPConfig = {
   url: 'https://developerknowledge.googleapis.com/mcp',
   headers: {},
   params: {},
+}
+
+/**
+ * The freebuff config the adapter must produce for `lint-runner` — the
+ * stdio variant of `TWO_SERVERS_JSON`, with the schema's own defaults
+ * filled (`args: []`, `env: {}`).
+ */
+export const EXPECTED_LINT_RUNNER_CONFIG: MCPConfig = {
+  type: 'stdio',
+  command: './bin/lint-runner',
+  args: [],
+  env: {},
 }
 
 /**
