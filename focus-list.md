@@ -194,6 +194,15 @@ Fixed 2026-09-16 — one commit per finding, each gated on a green run before it
 - T9 three command rows name "exits nonzero"/"exits zero" in their docstrings but never assert `process.exitCode` — the claimed behavior is unasserted (test-review S5.1) — fixed (`db0c18c9b`): the runner helper reports the status a shell would see; bun keeps the last `process.exitCode` it was given (`= undefined` is ignored), so the reset writes 0 and both capture and code are restored between rows; sabotage-proven — dropping the nonzero exit turns exactly the two rows that claim it red
 - T10 `plugin-child-process.test.ts` — `mkdtempSync(..., 'plugin-t34-test-')` leaks the internal test number into shipped test code; the earlier internal-reference sweep missed the prefix (the no-internal-references lesson) — fixed (`37dad972a`): the prefix names the test file, not a test number
 
+## Pre-review pruning pass (2026-09-16, human-ruled)
+
+The pruning guidelines and macro-suite health read fresh against all 66 rows after the SRP arc. Tier A (the ~38 spec rows): no redundancy, no input hoarding — the earlier reviews had already merged the real duplicates (T12→T29, T21→T26, the extra-args row deleted). Tier B (the ~12 session-join rows): each catches what no unit row can — the child-process suite caught P1's empty-reader bug, the dispatch probe caught empty name-sets — kept. Two rulings landed (`<pruning-commit>`):
+
+- The no-op-reader row ("a plugin loads with no skills read when the reader reads none") deleted: born mid-refactor to pin the empty-reader default `pluginMcpServers` relied on, but after the SRP arc the MCP walk no longer runs through the skills walk at all, so the row pinned an internal choice the component rows already specify. Its one live bit of confidence — a complete plugin's MCP load leaves the skill side untouched — moved into the MCP registry's shape row, whose fixture now writes a full plugin (skills/ included). `plugin-test-readers.ts` removed with its last consumer.
+- The missing-root row's `readDirs` spy replaced with a throwing reader: same claim (the reader is never asked), asserted by effect rather than by scaffolding — the house form the MCP sibling row already used.
+
+66 rows → 65, one fixture file gone, zero coverage lost.
+
 ## Missing operations (null versions)
 
 - ✅ loadManifest(root) — no longer a null version: Phase 1 landed it (T1–T11), so it is what the phase was missing. Its scope is the manifest alone — components, MCP, expansion and install are still null, which is what the rest of this list records
