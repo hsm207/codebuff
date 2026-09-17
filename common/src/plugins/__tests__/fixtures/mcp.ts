@@ -75,7 +75,7 @@ export const MIXED_ENTRIES_JSON = `{
  * An mcp.json with two conforming entries — the real bundle's remote one
  * plus a stdio sibling — so a row can assert both arrive: the §7.2 file is
  * a server-per-entry map, and a plugin carrying several MCP servers is
- * part of the bare-bones contract (human ruling 2026-09-16).
+ * supported.
  */
 export const TWO_SERVERS_JSON = `{
   "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
