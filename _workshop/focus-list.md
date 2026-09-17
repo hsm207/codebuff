@@ -4,6 +4,17 @@ PR OPEN: https://github.com/CodebuffAI/freebuff/pull/1372
 (fork:fix/agent-plugin-support, opened 2026-09-17). Block 7 is done;
 remaining work is reviewer response, tracked in PR comments.
 
+Field-note wall state (cleared 2026-09-17, verdicts in the clearing
+commit): two notes remain, both with a written death condition -
+- 2026-09-13-01-shape-agent-plugins.md: the initiative's shape,
+  phases and rulings. Dies when PR #1372 merges.
+- 2026-09-17-01-upstream-main-tsc-red.md: the upstream-tsc-red
+  finding every baseline run needs. Dies when upstream main is
+  tsc-green.
+The smoke-walkthrough results live in the shape note's ledger and
+commit c26e9b893; the letters and the ADC recipe live in oss-labnotes
+projects/freebuff/labnotes 2026-09-17-01 and -02.
+
 Correction (same day, operator ruling): the first squash (dc10ea0a6)
 silently carried the unmerged MCP-fix (#1259) content - 11 commits of
 zod-safe-clone/union-repair/converter work mixed into a plugins PR.
