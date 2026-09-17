@@ -4,14 +4,26 @@ PR OPEN: https://github.com/CodebuffAI/freebuff/pull/1372
 (fork:fix/agent-plugin-support, opened 2026-09-17). Block 7 is done;
 remaining work is reviewer response, tracked in PR comments.
 
+Correction (same day, operator ruling): the first squash (dc10ea0a6)
+silently carried the unmerged MCP-fix (#1259) content - 11 commits of
+zod-safe-clone/union-repair/converter work mixed into a plugins PR.
+Rebuilt plugins-only (6bd820be8, 49 files / +4276): every MCP-fix
+module, test and hunk removed, upstream files restored to main state;
+verified plugin suites green, tsc parity with upstream red counts,
+agent-runtime failure set identical to pristine main. Force-pushed
+onto the open PR (--force-with-lease, no reviews lost). Lesson: a
+squash of a stacked branch carries the whole stack - unmix it BEFORE
+the squash, or cut the branch from the right base to begin with.
+
 Driver rebuilt 2026-09-17: local/debug-infra now points at the
 feature tip (7d1bf68d9) — V2-rebuild shape, toolbox commits re-arm
 from there. Old driver preserved as backup/driver-pre-plugins-rebuild.
 
-Branch state: PR commit dc10ea0a6 on tmp-plugin-pr (one commit atop
-origin/main dea6619dd, workshop/toolbox/hook stripped, suites green).
-feat/agent-plugins keeps the full local history + backup/
-pre-rebase-2026-09-17. _workshop/ restored locally, untracked.
+Branch state: PR commit 6bd820be8 (plugins-only) on
+fork:fix/agent-plugin-support; local twin tmp-plugins-only.
+feat/agent-plugins keeps the full local history (still stacked on the
+MCP-fix - that is correct for the driver) + backup/
+pre-rebase-2026-09-17.
 
 ## Must pass before the PR opens
 
