@@ -1,0 +1,21 @@
+#!/bin/sh
+# pre-commit: formats the staged code files with prettier, then re-stages them,
+# so a commit cannot carry unformatted code. Nothing here is upstream material.
+#
+# This exists because the repository declares prettier but never runs it: no
+# hooks, no lint script, and a CI that builds and smoke-tests only. Hand-written
+# code therefore drifted to ~100 columns against a config whose printWidth is
+# the 80 default. Strip this hook (and the local core.hooksPath setting) before
+# opening the upstream PR.
+set -e
+
+cd "$(git rev-parse --show-toplevel)" || exit 2
+
+# shellcheck disable=SC2086
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR -- \
+  '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.css')
+
+[ -z "$STAGED" ] && exit 0
+
+bunx prettier --write --ignore-unknown $STAGED
+git add $STAGED
