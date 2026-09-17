@@ -1,9 +1,5 @@
 #!/usr/bin/env bun
 
-//[toolbox:cli.warningNet]
-import { toolboxWarningNet } from '@codebuff/common/debug-toolbox/tracer'
-toolboxWarningNet()
-
 import {
   isTerminalCommandBrokerInvocation,
   serveTerminalCommandBroker,

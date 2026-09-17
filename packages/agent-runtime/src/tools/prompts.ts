@@ -10,8 +10,6 @@ import { formatAvailableSkillsXml } from '@codebuff/common/util/skills'
 import { pluralize } from '@codebuff/common/util/string'
 import { cloneDeepKeepingZod } from '../util/zod-safe-clone'
 import { serveInputSchema } from './serve-input-schema'
-import { toolboxTrace } from '@codebuff/common/debug-toolbox/tracer'
-import { zodShapeProbe } from '@codebuff/common/debug-toolbox/probes'
 import z from 'zod/v4'
 import { convertJsonSchemaToZod } from 'zod-from-json-schema'
 
@@ -439,8 +437,6 @@ export async function getToolSet(params: {
     // unconditional zod round-trip stripped loose schemas to an empty
     // object schema at the model.
     const safeSchema = serveInputSchema(clonedDef.inputSchema)
-    //[toolbox:schema.toolset.final]
-    toolboxTrace('schema.toolset.final', { toolName, shape: zodShapeProbe(safeSchema) })
     toolSet[toolName] = {
       ...clonedDef,
       inputSchema: safeSchema,
